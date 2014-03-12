@@ -14,11 +14,11 @@ import numpy
 import random
 
 @KARABO_CLASSINFO("SimulatedCameraPy", "1.0 1.1")
-class PythonSimulatedCamera(PythonDevice, CameraFsm):
+class SimulatedCameraPy(PythonDevice, CameraFsm):
 
     def __init__(self, configuration):
         # always call PythonDevice constructor first!
-        super(PythonSimulatedCamera,self).__init__(configuration)
+        super(SimulatedCameraPy,self).__init__(configuration)
         
         random.seed()
         
