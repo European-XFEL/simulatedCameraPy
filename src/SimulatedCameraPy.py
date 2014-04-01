@@ -104,9 +104,9 @@ class SimulatedCameraPy(PythonDevice, CameraFsm):
                 .init()
                 .commit()
         ,
-        STRING_ELEMENT(expected).key("imageFilename")
+        PATH_ELEMENT(expected).key("imageFilename")
                 .displayedName("Image Filename")
-                .description("The full filename to the fake image displayed by the camera")
+                .description("The full filename to the fake image displayed by the camera. File format must be 'npy'.")
                 .assignmentOptional().defaultValue("european-xfel-logo-greyscales.npy")
                 .init()
                 .commit()
