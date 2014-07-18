@@ -5,7 +5,6 @@ __date__ ="November 12, 2013, 11:22 AM"
 __copyright__="Copyright (c) 2010-2013 European XFEL GmbH Hamburg. All rights reserved."
 
 import time
-import sys
 import threading
 from karabo.device import *
 from karabo.camera_fsm import CameraFsm
@@ -13,7 +12,7 @@ from karabo.camera_fsm import CameraFsm
 import numpy
 import random
 
-@KARABO_CLASSINFO("SimulatedCameraPy", "1.0 1.1")
+@KARABO_CLASSINFO("SimulatedCameraPy", "1.0 1.1 1.2")
 class SimulatedCameraPy(PythonDevice, CameraFsm):
 
     def __init__(self, configuration):
@@ -22,7 +21,6 @@ class SimulatedCameraPy(PythonDevice, CameraFsm):
         
         random.seed()
         
-        self.stopAcq   = False
         self.doAcquire = False
         self.triggerReceived = False
         self.acqThread = None
@@ -186,7 +184,6 @@ class SimulatedCameraPy(PythonDevice, CameraFsm):
         # Prepares and starts acquisition thread
         self.doAcquire = True
         self.triggerReceived = False
-        self.stopAcq   = False
         self.acqThread = threading.Thread(target = self.acquireImages)
         self.acqThread.start()
         
@@ -226,11 +223,6 @@ class SimulatedCameraPy(PythonDevice, CameraFsm):
         
         while self.doAlwaysRun:
             
-            if self.stopAcq:
-                # Somebody raised the "stopAcq" flag
-                self.stopAcq = False
-                self.stop()
-            
             # Here more periodical checks can be added
             
             # Sleeps for a fraction of second
@@ -241,13 +233,11 @@ class SimulatedCameraPy(PythonDevice, CameraFsm):
         mesg = "pollHardware %s" % pollInterval
         self.log.INFO(mesg)
         
-        lTime = 0.
-        
         while self.doPolling:
             temperature = 25.4 + random.random()/10.
             self.set("sensorTemperature", temperature);
 
-            # Sleeps for a fraction of second
+            # Sleeps for a while
             t = self.get("pollingInterval")
             time.sleep(t)
 
@@ -302,9 +292,8 @@ class SimulatedCameraPy(PythonDevice, CameraFsm):
             i += 1
             if fixedMode and i>=frameCount:
                 # The desired number of frames have been taken
-                self.stopAcq = True
-                break
-
+                self.execute("stop") # trigger transition to Ready state
+                break # exit acquisition loop
 
     def isMainThreadAlive(self):
         # Checks whether MainThread is still alive
