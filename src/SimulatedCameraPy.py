@@ -12,7 +12,7 @@ from karabo.camera_fsm import CameraFsm
 import numpy
 import random
 
-@KARABO_CLASSINFO("SimulatedCameraPy", "1.0 1.1 1.2")
+@KARABO_CLASSINFO("SimulatedCameraPy", "1.2")
 class SimulatedCameraPy(PythonDevice, CameraFsm):
 
     def __init__(self, configuration):
