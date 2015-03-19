@@ -10,14 +10,17 @@ from karabo.device import *
 from karabo.camera_fsm import CameraFsm
 
 import numpy
+import scipy.stats
 import random
 
-@KARABO_CLASSINFO("SimulatedCameraPy", "1.2")
+@KARABO_CLASSINFO("SimulatedCameraPy", "1.0 1.1 1.2")
 class SimulatedCameraPy(PythonDevice, CameraFsm):
 
     def __init__(self, configuration):
         # always call PythonDevice constructor first!
         super(SimulatedCameraPy,self).__init__(configuration)
+        
+        self.output = self._ss.createOutputChannelRawImageData("output", configuration)
         
         random.seed()
         
@@ -36,14 +39,40 @@ class SimulatedCameraPy(PythonDevice, CameraFsm):
 
         # Image
         self.image = None
-        
+    
+    def __del__(self):
+        self.output = None
+        super(SimulatedCameraPy, self).__del__()
+    
     @staticmethod
     def expectedParameters(expected):
         '''Description of device parameters statically known'''
         (
+        
+        OUTPUT_ELEMENT(expected).key("output")
+                .displayedName("Output")
+                .description("Output")        
+                .setOutputType(OutputRawImageData)
+                .commit()
+        ,
         IMAGE_ELEMENT(expected).key("image")
                 .displayedName("Image")
                 .description("Image")
+                .commit()
+        ,
+        STRING_ELEMENT(expected).key("imageType")
+                .displayedName("Image Type")
+                .description("Select the simulated image type")
+                .options("2d_Gaussian,RGB_Image,Grayscale_Image,Load_from_file")
+                .assignmentOptional().defaultValue("Load_from_file")
+                .init()
+                .commit()
+        ,
+        PATH_ELEMENT(expected).key("imageFilename")
+                .displayedName("Image Filename")
+                .description("The full filename to the fake image displayed by the camera. File format must be 'npy'.")
+                .assignmentOptional().defaultValue("european-xfel-logo-greyscales.npy")
+                .init()
                 .commit()
         ,
         DOUBLE_ELEMENT(expected).key("exposureTime")
@@ -102,13 +131,7 @@ class SimulatedCameraPy(PythonDevice, CameraFsm):
                 .init()
                 .commit()
         ,
-        PATH_ELEMENT(expected).key("imageFilename")
-                .displayedName("Image Filename")
-                .description("The full filename to the fake image displayed by the camera. File format must be 'npy'.")
-                .assignmentOptional().defaultValue("european-xfel-logo-greyscales.npy")
-                .init()
-                .commit()
-        ,
+        
         ###################################
         #  READ ONLY HARDWARE PARAMETERS  #
         ###################################
@@ -161,16 +184,43 @@ class SimulatedCameraPy(PythonDevice, CameraFsm):
         # Camera model
         self.set("cameraModel", "simCam")
         
-        # Try to load image file
-        filename = self.get("imageFilename")
+        imageType = self.get("imageType")
+        
         try:
-            data = numpy.load(filename)
-        except:
+            if imageType == "2d_Gaussian":
+                # 2d Gaussian, no rotation
+                rvx = scipy.stats.norm(300, 50)
+                x = rvx.pdf(numpy.arange(800)) # 1d gaussian
+                rvy = scipy.stats.norm(200, 75)
+                y = rvy.pdf(numpy.arange(600)) # 1d gaussian
+                z = numpy.outer(y, x) # 2d gaussian (float64)
+                data = (z/z.max()*0.5*numpy.iinfo('uint8').max).astype('uint8') # -> uint8
+                self.log.INFO('2d gaussian image loaded')
+            elif imageType == 'RGB_Image':
+                # RGB image
+                data = numpy.append(numpy.append([[255,0,0]*67500], [[0,255,0]*67500]), [[0,0,255]*67500]).reshape(450,450,3).astype('uint8')
+                self.log.INFO('RGB image loaded')
+            elif imageType == 'Load_from_file':
+                # Try to load image file
+                filename = self.get("imageFilename")
+                data = numpy.load(filename)
+                self.log.INFO('Image loaded from file ' + filename)
+            else:
+                # Default image, grayscale, vertical gradient
+                a = numpy.arange(500, dtype=numpy.uint16)
+                b = numpy.array([a]*500)
+                data = numpy.rot90(b)
+                self.log.INFO('Default image (grayscale) loaded')
+        except Exception as e:
+            # Default image, grayscale, vertical gradient
             a = numpy.arange(500, dtype=numpy.uint16)
             b = numpy.array([a]*500)
             data = numpy.rot90(b)
+            self.log.WARN(str(e))
+            self.log.INFO('Default image (grayscale) loaded')
+        
         self.image = data
-
+        
         # Sensor geometry
         self.set("sensorHeight", data.shape[0])
         self.set("sensorWidth", data.shape[1])
@@ -254,10 +304,13 @@ class SimulatedCameraPy(PythonDevice, CameraFsm):
             fixedMode  = True
             frameCount = self.get("frameCount")
         
+        # Image type
+        imageType = self.get("imageType")
+        
         # Get original image and multiply it by pixelGain
         pixelGain = self.get("pixelGain")
-        image = self.image
-        image *= pixelGain
+        image = self.image # Copy original image
+        image *= pixelGain # Apply pixel gain to copy
         
         i = 0
         while self.doAcquire:
@@ -276,17 +329,46 @@ class SimulatedCameraPy(PythonDevice, CameraFsm):
                     # No SW trigger yet... wait 10 ms
                     time.sleep(0.010)
                     continue
-
+            
             expTime = self.get("exposureTime")
             time.sleep(expTime) # Sleep for the appropriate time
             
-            # Roll image by 10 lines
-            w = 10*image.shape[0]
-            image = numpy.roll(image, w)
-            rawImgData = RawImageData(image, EncodingType.GRAY)
-
-            # Set image element
-            self.set("image", rawImgData)
+            if imageType == '2d_Gaussian':
+                # Add some random noise
+                image2 = image + numpy.random.uniform(high=20, size=image.shape).astype('uint8')
+            else:
+                # Roll image by 10 lines
+                w = 10*image.shape[0]
+                image = numpy.roll(image, w)
+                image2 = image
+            
+            if len(image2.shape)==2:
+                # Grayscale
+                rawImageData = RawImageData(image2, EncodingType.GRAY)
+            elif len(image2.shape)==3 and image2.shape[2]==3:
+                # RGB
+                rawImageData = RawImageData(image2, EncodingType.RGB)
+            elif len(image2.shape)==3 and image2.shape[2]==4:
+                # RGBA
+                rawImageData = RawImageData(image2, EncodingType.RGBA)
+            else:
+                self.log.ERROR("Image has odd shape: " + str(array.shape) + " -> skip it!")
+                # Unknown
+                continue
+            
+            try:
+                # Set image element
+                self.set("image", rawImageData)
+            except Exception as e:
+                self.log.ERROR("Could not set image")
+                self.log.DEBUG(str(e))
+            
+            try:
+                self.output.write(rawImageData) # Send the image to device output channel
+                self.output.update() # Flush the output channel
+            except Exception as e:
+                self.log.ERROR("Could not write image to output channel")
+                self.log.DEBUG(str(e))
             
             # Counter
             i += 1
