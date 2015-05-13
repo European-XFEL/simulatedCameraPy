@@ -4,16 +4,16 @@
 import unittest
 
 
-class  PythonSimulatedCameraTestCase(unittest.TestCase):
+class  SimulatedCameraPyTestCase(unittest.TestCase):
     #def setUp(self):
-    #    self.foo = PythonSimulatedCamera()
+    #    self.foo = SimulatedCameraPy()
     #
 
     #def tearDown(self):
     #    self.foo.dispose()
     #    self.foo = None
 
-    def test_PythonSimulatedCamera(self):
+    def test_SimulatedCameraPy(self):
         #assert x != y;
         #self.assertEqual(x, y, "Msg");
         self.fail("TODO: Write test")
