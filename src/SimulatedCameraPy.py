@@ -263,19 +263,28 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             if newPixelGain!=pixelGain:
                 image *= newPixelGain/pixelGain
                 pixelGain = newPixelGain
+
+            imageType = self.get("imageType")
+            if imageType == '2d_Gaussian':
+                # Add some random noise
+                image2 = image + numpy.random.uniform(high=20, size=image.shape).astype('uint8')
+            else:
+                # Roll image by 10 lines
+                w = 10*image.shape[0]
+                image = numpy.roll(image, w)
+                image2 = image
             
             # Construct image data object in parts
             imageData = ImageData()
-            if image.ndim==2:
-                dims = Dims(image.shape[0], image.shape[1]) # TODO: new API
-                imageData.setData(image, True)
+            if image2.ndim==2:
+                dims = Dims(image2.shape[0], image2.shape[1]) # TODO: width, height
+                imageData.setData(image2, True)
                 imageData.setDimensions(dims);
             elif image.ndim>2:
                 # Color image (TODO)
                 pass
 
-            # self.write("output", "image", imageData) # TODO new API
-            print("Received new image") # TODO rm
+            self.writeChannel("output", "image", imageData)
             
             if saveImages:
                 # Create filename (without path and extension)
@@ -285,7 +294,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 
                 if self.fileType=="tif" or self.fileType=="jpg" or self.fileType=="png":
                     # PIL must installed!
-                    scipy.misc.imsave(imgname, image)
+                    scipy.misc.imsave(imgname, image2)
                 else:
                     raise ValueError("File type not supported")
 
