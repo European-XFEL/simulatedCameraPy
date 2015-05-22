@@ -171,13 +171,13 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             else:
                 # Default image, grayscale, vertical gradient
                 a = numpy.arange(500, dtype=numpy.uint16)
-                b = numpy.array([a]*500)
+                b = numpy.array([a]*1000)
                 data = numpy.rot90(b)
                 self.log.INFO('Default image (grayscale) loaded')
         except Exception as e:
             # Default image, grayscale, vertical gradient
             a = numpy.arange(500, dtype=numpy.uint16)
-            b = numpy.array([a]*500)
+            b = numpy.array([a]*1000)
             data = numpy.rot90(b)
             self.log.WARN(str(e))
             self.log.INFO('Default image (grayscale) loaded')
@@ -275,16 +275,12 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 image2 = image
             
             # Construct image data object in parts
-            imageData = ImageData()
             if image2.ndim==2:
-                dims = Dims(image2.shape[0], image2.shape[1]) # TODO: width, height
-                imageData.setData(image2, True)
-                imageData.setDimensions(dims);
+                imageData = ImageData(image2)
+                self.writeChannel("output", "image", imageData)
             elif image.ndim>2:
                 # Color image (TODO)
                 pass
-
-            self.writeChannel("output", "image", imageData)
             
             if saveImages:
                 # Create filename (without path and extension)
