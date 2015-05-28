@@ -275,12 +275,8 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 image2 = image
             
             # Construct image data object in parts
-            if image2.ndim==2:
-                imageData = ImageData(image2)
-                self.writeChannel("output", "image", imageData)
-            elif image.ndim>2:
-                # Color image (TODO)
-                pass
+            imageData = ImageData(image2)
+            self.writeChannel("output", "image", imageData)
             
             if saveImages:
                 # Create filename (without path and extension)
