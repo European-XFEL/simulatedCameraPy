@@ -9,6 +9,7 @@ import numpy
 import scipy.misc
 import scipy.stats
 import random
+import threading
 
 from karabo.device import *
 from karabo.camera_interface import CameraInterface
@@ -36,12 +37,24 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         self.fileType = ""
         self.fileCounter = 0
         
+        # Condition variable and lock, to wake up acquireImages() when trigger is received
+        self.condLock = threading.Lock()
+        self.condVar = threading.Condition(self.condLock)
+        # Acquire thread
+        self.acquireThread = None
+        
     def __del__(self):
+        
+        # Stop polling camera
         if self.pollWorker is not None:
             if self.pollWorker.is_running():
                 self.pollWorker.stop()
             self.pollWorker.join()
             self.pollWorker = None
+        
+        # Stop acquisition, if running
+        if self.get("state")=="Acquiring":
+            self.stop()
         
         super(SimulatedCameraPy, self).__del__()
     
@@ -110,15 +123,15 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 .readOnly()
                 .commit()
         ,
-        INT32_ELEMENT(expected).key("sensorHeight")
-                .displayedName("Sensor Height")
-                .description("Returns the height of the sensor in pixels")
-                .readOnly()
-                .commit()
-        ,
         INT32_ELEMENT(expected).key("sensorWidth")
                 .displayedName("Sensor Width")
                 .description("Returns the width of the sensor in pixels")
+                .readOnly()
+                .commit()
+        ,
+        INT32_ELEMENT(expected).key("sensorHeight")
+                .displayedName("Sensor Height")
+                .description("Returns the height of the sensor in pixels")
                 .readOnly()
                 .commit()
         ,
@@ -137,11 +150,14 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         )
     
     def preReconfigure(self, inputConfig):
+        self.log.INFO("SimulatedCameraPy.preReconfigure")
         if inputConfig.has("pollInterval") and self.pollWorker is not None:
             timeout = 1000 * inputConfig.get("pollInterval") # to milliseconds
             self.pollWorker.setTimeout(timeout)
         
     def initialize(self):
+        self.log.INFO("SimulatedCameraPy.initialize")
+        
         self.updateState("Initializing")
         
         # Camera model
@@ -193,27 +209,12 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             timeout = 1000*self.get("pollInterval") # to milliseconds
             self.pollWorker = Worker(self.pollHardware, timeout, -1).start()
         
-        # Sleep a while, then go to "Ready"
+        # Sleep a while (to simulate camera initialization), then go to "Ready"
         time.sleep(1)
         self.updateState("Ready")
     
     def acquire(self):
-        self.updateState("Acquiring")
-        self.set("cameraAcquiring", True)
-        
-        # Is software trigger?
-        triggerModeIsSoftware = False
-        if self.get("triggerMode") == "Software":
-            triggerModeIsSoftware = True
-        
-        # Is cycle mode "fixed"?
-        cycleModeIsFixed = False
-        if self.get("cycleMode") == "Fixed":
-            cycleModeIsFixed = True
-        # How many frames should be acquired
-        frameCount = self.get("frameCount")
-        # Frame counter
-        frames = 0
+        self.log.INFO("SimulatedCameraPy.acquire")
         
         # Get file path, name and extension
         newName = False
@@ -233,13 +234,73 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             # File has changed name... reset counter
             self.fileCounter = 0
         
+        # Start acquire thread, since slots cannot block
+        self.keepAcquiring = True
+        self.swTrgReceived = False
+        self.acquireThread = threading.Thread(target = self.acquireImages)
+        self.acquireThread.start()
+        
+        # Change state
+        self.updateState("Acquiring")
+        self.set("cameraAcquiring", True)
+    
+    def trigger(self):
+        self.log.INFO("SimulatedCameraPy.trigger")
+
+        # Will notify acquireImages to continue
+        self.condVar.acquire()
+        self.swTrgReceived = True
+        self.condVar.notify_all()
+        self.condVar.release()
+    
+    def stop(self):
+        self.log.INFO("SimulatedCameraPy.stop")
+        
+        self.keepAcquiring = False # Signal acquire thread to quit
+        
+        # If running with software trigger, must notify acquire thread to continue
+        self.condVar.acquire()
+        self.swTrgReceived = False
+        self.condVar.notify_all()
+        self.condVar.release()
+        
+        # Wait for acquire thread to join
+        if (self.acquireThread!=None and self.acquireThread.isAlive()):
+            self.acquireThread.join(10.)
+        
+        self.set("cameraAcquiring", False)
+        self.updateState("Ready")
+    
+    def resetHardware(self):
+        self.log.INFO("SimulatedCameraPy.resetHardware")
+        self.updateState("Ready")
+    
+    def pollHardware(self):
+        self.log.INFO("SimulatedCameraPy.pollHardware")
+        temperature = 25.4 + random.random()/10.
+        self.set("sensorTemperature", temperature);
+    
+    def acquireImages(self):
+        self.log.INFO("SimulatedCameraPy.acquireImages")
+        
+        # Is software trigger?
+        triggerModeIsSoftware = False
+        if self.get("triggerMode") == "Software":
+            triggerModeIsSoftware = True
+        
+        # Is cycle mode "fixed"?
+        cycleModeIsFixed = False
+        if self.get("cycleMode") == "Fixed":
+            cycleModeIsFixed = True
+        # How many frames should be acquired
+        frameCount = self.get("frameCount")
+        # Frame counter
+        frames = 0
+        
         saveImages = self.get("imageStorage.enable")
         pixelGain = self.get("pixelGain")
         image = self.image # Copy original image
         image *= pixelGain # Apply pixel gain to copy
-        
-        self.keepAcquiring = True
-        self.swTrgReceived = False
         
         while self.keepAcquiring:
             
@@ -248,15 +309,19 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             
             if triggerModeIsSoftware:
                 # Running in SW trigger mode
-                if self.swTrgReceived:
-                    # A SW trigger has been received
-                    self.swTrgReceived = False # Reset the flag, "acquire" image
-                else: 
-                    # No SW trigger yet... will check again in 10 ms
-                    time.sleep(0.010)
+                
+                # Wait notification
+                self.condVar.acquire()
+                self.condVar.wait()
+                self.condVar.release()
+                
+                if not self.swTrgReceived:
+                    # No sw trigger -> continue
                     continue
+                else:
+                    self.swTrgReceived = False
             
-            # Sleep for "exposureTime"
+            # Sleep for "exposureTime" to simulate image acquisition
             time.sleep(exposureTime)
             
             # Pixel gain has changed
@@ -296,23 +361,8 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             frames+=1
             if cycleModeIsFixed and frames>=frameCount:
                 self.stop()
-    
-    def trigger(self):
-         self.swTrgReceived = True
-    
-    def stop(self):
-        self.keepAcquiring = False
-        self.set("cameraAcquiring", False)
 
-        self.updateState("Ready")
-    
-    def resetHardware(self):
-        self.updateState("Ready")
-    
-    def pollHardware(self, isRepetitionCounterExpired):
-        temperature = 25.4 + random.random()/10.
-        self.set("sensorTemperature", temperature);
-    
+
 # This entry used by device server
 if __name__ == "__main__":
     launchPythonDevice()
