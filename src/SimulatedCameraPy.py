@@ -304,9 +304,6 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         
         while self.keepAcquiring:
             
-            exposureTime = self.get("exposureTime")
-            newPixelGain = self.get("pixelGain")
-            
             if triggerModeIsSoftware:
                 # Running in SW trigger mode
                 
@@ -320,6 +317,9 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                     continue
                 else:
                     self.swTrgReceived = False
+            
+            exposureTime = self.get("exposureTime")
+            newPixelGain = self.get("pixelGain")
             
             # Sleep for "exposureTime" to simulate image acquisition
             time.sleep(exposureTime)
