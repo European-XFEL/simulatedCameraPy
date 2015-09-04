@@ -303,64 +303,75 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         image *= pixelGain # Apply pixel gain to copy
         
         while self.keepAcquiring:
-            
-            if triggerModeIsSoftware:
-                # Running in SW trigger mode
-                
-                # Wait notification
-                self.condVar.acquire()
-                self.condVar.wait()
-                self.condVar.release()
-                
-                if not self.swTrgReceived:
-                    # No sw trigger -> continue
-                    continue
-                else:
-                    self.swTrgReceived = False
-            
-            exposureTime = self.get("exposureTime")
-            newPixelGain = self.get("pixelGain")
-            
-            # Sleep for "exposureTime" to simulate image acquisition
-            time.sleep(exposureTime)
-            
-            # Pixel gain has changed
-            if newPixelGain!=pixelGain:
-                image *= newPixelGain/pixelGain
-                pixelGain = newPixelGain
 
-            imageType = self.get("imageType")
-            if imageType == '2d_Gaussian':
-                # Add some random noise
-                image2 = image + numpy.random.uniform(high=20, size=image.shape).astype('uint8')
-            else:
-                # Roll image by 10 lines
-                w = 10*image.shape[0]
-                image = numpy.roll(image, w)
-                image2 = image
-            
-            # Construct image data object in parts
-            imageData = ImageData(image2)
-            self.writeChannel("output", "image", imageData)
-            
-            if saveImages:
-                # Create filename (without path and extension)
-                imgname = "%s%06ld" % (self.fileName, self.fileCounter)
-                # Prepend path and append extension
-                imgname = os.path.join(self.filePath, imgname + "." + self.fileType)
-                
-                if self.fileType=="tif" or self.fileType=="jpg" or self.fileType=="png":
-                    # PIL must installed!
-                    scipy.misc.imsave(imgname, image2)
-                else:
-                    raise ValueError("File type not supported")
+            try:
+                if triggerModeIsSoftware:
+                    # Running in SW trigger mode
 
-                self.set("imageStorage.lastSaved", imgname)
-                self.fileCounter+=1
-            
-            frames+=1
-            if cycleModeIsFixed and frames>=frameCount:
-                self.stop()
+                    # Wait notification
+                    self.condVar.acquire()
+                    self.condVar.wait()
+                    self.condVar.release()
+
+                    if not self.swTrgReceived:
+                        # No sw trigger -> continue
+                        continue
+                    else:
+                        self.swTrgReceived = False
+
+                exposureTime = self.get("exposureTime")
+                newPixelGain = self.get("pixelGain")
+
+                # Sleep for "exposureTime" to simulate image acquisition
+                time.sleep(exposureTime)
+
+                # Pixel gain has changed
+                if newPixelGain!=pixelGain:
+                    image *= newPixelGain/pixelGain
+                    pixelGain = newPixelGain
+
+                imageType = self.get("imageType")
+                if imageType == '2d_Gaussian':
+                    # Add some random noise
+                    image2 = image + numpy.random.uniform(high=20, size=image.shape).astype('uint8')
+                else:
+                    # Roll image by 10 lines
+                    w = 10*image.shape[0]
+                    image = numpy.roll(image, w)
+                    image2 = image
+
+                # Construct image data object in parts
+                imageData = ImageData(image2)
+                self.writeChannel("output", "image", imageData)
+
+                if saveImages:
+                    # Create filename (without path and extension)
+                    imgname = "%s%06ld" % (self.fileName, self.fileCounter)
+                    # Prepend path and append extension
+                    imgname = os.path.join(self.filePath, imgname + "." + self.fileType)
+
+                    if self.fileType=="tif" or self.fileType=="jpg" or self.fileType=="png":
+                        # PIL must installed!
+                        scipy.misc.imsave(imgname, image2)
+                    else:
+                        raise ValueError("File type not supported")
+
+                    self.set("imageStorage.lastSaved", imgname)
+                    self.fileCounter+=1
+
+                frames+=1
+                if cycleModeIsFixed and frames>=frameCount:
+                    # change state, quit loop
+                    self.set("cameraAcquiring", False)
+                    self.updateState("Ready")
+                    break
+
+            except Exception as e:
+                # log error, change state, quit loop
+                self.log.ERROR("SimulatedCameraPy.acquireImages: " + str(e))
+                self.set("cameraAcquiring", False)
+                self.updateState("HardwareError")
+                break
 
 
 # This entry used by device server
