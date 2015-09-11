@@ -276,7 +276,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         self.updateState("Ready")
     
     def pollHardware(self):
-        self.log.INFO("SimulatedCameraPy.pollHardware")
+        self.log.DEBUG("SimulatedCameraPy.pollHardware")
         temperature = 25.4 + random.random()/10.
         self.set("sensorTemperature", temperature);
     
