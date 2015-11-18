@@ -4,16 +4,23 @@ __author__="andrea.parenti@xfel.eu"
 __date__ ="November 12, 2013, 11:22 AM"
 __copyright__="Copyright (c) 2010-2013 European XFEL GmbH Hamburg. All rights reserved."
 
+import os
 import time
-import numpy
-import scipy.misc
-import scipy.stats
 import random
 import threading
 
-from karabo.device import *
+import numpy
+import scipy.misc
+import scipy.stats
+
+from karabo.decorators import KARABO_CLASSINFO
+from karabo.device import PythonDevice, launchPythonDevice
 from karabo.camera_interface import CameraInterface
 from karabo.no_fsm import Worker
+from karathon import (
+    BOOL_ELEMENT, DOUBLE_ELEMENT, INT32_ELEMENT, PATH_ELEMENT, STRING_ELEMENT,
+    ImageData, Unit
+)
 
 @KARABO_CLASSINFO("SimulatedCameraPy", "1.3")
 class SimulatedCameraPy(PythonDevice, CameraInterface):
