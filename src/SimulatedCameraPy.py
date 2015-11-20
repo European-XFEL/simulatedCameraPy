@@ -22,7 +22,7 @@ from karathon import (
     ImageData, Unit
 )
 
-@KARABO_CLASSINFO("SimulatedCameraPy", "1.3")
+@KARABO_CLASSINFO("SimulatedCameraPy", "1.4")
 class SimulatedCameraPy(PythonDevice, CameraInterface):
 
     def __init__(self, configuration):
