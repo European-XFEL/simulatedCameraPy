@@ -4,8 +4,7 @@ __author__="andrea.parenti@xfel.eu"
 __date__ ="May, 2015, 04:01 PM"
 __copyright__="Copyright (c) 2010-2013 European XFEL GmbH Hamburg. All rights reserved."
 
-from karabo.configurator import Configurator
-from karathon import Hash
+from karabo.api_1 import Configurator, Hash
 from SimulatedCameraPy import PythonDevice
 
 if __name__ == "__main__":

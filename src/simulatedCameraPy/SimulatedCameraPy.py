@@ -13,14 +13,12 @@ import numpy
 import scipy.misc
 import scipy.stats
 
-from karabo.decorators import KARABO_CLASSINFO
-from karabo.device import PythonDevice, launchPythonDevice
-from karabo.camera_interface import CameraInterface
-from karabo.no_fsm import Worker
-from karathon import (
+from karabo.api_1 import (
+    KARABO_CLASSINFO, PythonDevice, launchPythonDevice, CameraInterface,
+    Worker, ImageData, Unit,
     BOOL_ELEMENT, DOUBLE_ELEMENT, INT32_ELEMENT, PATH_ELEMENT, STRING_ELEMENT,
-    ImageData, Unit
 )
+
 
 @KARABO_CLASSINFO("SimulatedCameraPy", "1.4")
 class SimulatedCameraPy(PythonDevice, CameraInterface):
