@@ -304,7 +304,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         
         saveImages = self.get("imageStorage.enable")
         pixelGain = self.get("pixelGain")
-        image = self.image # Copy original image
+        image = numpy.copy(self.image) # Copy original image
         image *= pixelGain # Apply pixel gain to copy
         
         while self.keepAcquiring:
