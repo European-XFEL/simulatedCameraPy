@@ -2,7 +2,7 @@
 
 __author__="andrea.parenti@xfel.eu"
 __date__ ="November 12, 2013, 11:22 AM"
-__copyright__="Copyright (c) 2010-2013 European XFEL GmbH Hamburg. All rights reserved."
+__copyright__="Copyright (c) 2010-2015 European XFEL GmbH Hamburg. All rights reserved."
 
 import os
 import time
@@ -13,10 +13,14 @@ import numpy
 import scipy.misc
 import scipy.stats
 
-from karabo.api_1 import (
-    KARABO_CLASSINFO, PythonDevice, launchPythonDevice, CameraInterface,
-    Worker, ImageData, Unit,
-    BOOL_ELEMENT, DOUBLE_ELEMENT, INT32_ELEMENT, PATH_ELEMENT, STRING_ELEMENT,
+from karabo.api1.worker import Worker
+from karabo.api1.decorators import KARABO_CLASSINFO
+from karabo.api1.device import PythonDevice, launchPythonDevice
+from karabo.api1.camera_interface import CameraInterface
+
+from karathon import (
+    ImageData, Unit,
+    BOOL_ELEMENT, DOUBLE_ELEMENT, INT32_ELEMENT, PATH_ELEMENT, STRING_ELEMENT
 )
 
 
