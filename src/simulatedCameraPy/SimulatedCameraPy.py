@@ -15,7 +15,7 @@ import scipy.stats
 
 from karabo.bound import (
     KARABO_CLASSINFO, PythonDevice, launchPythonDevice, Worker, 
-    ImageData, Unit,
+    CameraInterface, ImageData, Unit,
     BOOL_ELEMENT, DOUBLE_ELEMENT, INT32_ELEMENT, PATH_ELEMENT, STRING_ELEMENT
 )
 
