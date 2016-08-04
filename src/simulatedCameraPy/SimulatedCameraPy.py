@@ -14,11 +14,11 @@ import scipy.misc
 import scipy.stats
 
 from karabo.bound import (
-    KARABO_CLASSINFO, PythonDevice, launchPythonDevice, Worker, 
+    KARABO_CLASSINFO, PythonDevice, launchPythonDevice,
     CameraInterface, ImageData, Unit,
     BOOL_ELEMENT, DOUBLE_ELEMENT, INT32_ELEMENT, PATH_ELEMENT, STRING_ELEMENT
 )
-
+from karabo.worker import Worker
 
 @KARABO_CLASSINFO("SimulatedCameraPy", "1.4 1.5")
 class SimulatedCameraPy(PythonDevice, CameraInterface):
