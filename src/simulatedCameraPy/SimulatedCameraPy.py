@@ -15,12 +15,12 @@ import scipy.stats
 
 from karabo.bound import (
     KARABO_CLASSINFO, PythonDevice, launchPythonDevice, Worker, 
-    CameraInterface, ImageData, Unit,
+    CameraInterface, ImageData, Unit, State,
     BOOL_ELEMENT, DOUBLE_ELEMENT, INT32_ELEMENT, PATH_ELEMENT, STRING_ELEMENT
 )
 
 
-@KARABO_CLASSINFO("SimulatedCameraPy", "1.4 1.5")
+@KARABO_CLASSINFO("SimulatedCameraPy", "2.0")
 class SimulatedCameraPy(PythonDevice, CameraInterface):
 
     def __init__(self, configuration):
@@ -97,7 +97,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 .assignmentOptional().defaultValue("Continuous")
                 .options("Fixed Continuous")
                 .reconfigurable()
-                .allowedStates("Ready")
+                .allowedStates(State.ACTIVE)
                 .commit()
         ,
         INT32_ELEMENT(expected).key("frameCount")
@@ -106,7 +106,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                              "when the camera is in 'Fixed' Mode")
                 .assignmentOptional().defaultValue(1)
                 .reconfigurable()
-                .allowedStates("Ready")
+                .allowedStates(State.ACTIVE)
                 .commit()
         ,
         STRING_ELEMENT(expected).key("triggerMode")
@@ -115,7 +115,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 .assignmentOptional().defaultValue("Internal")
                 .options("Internal Software")
                 .reconfigurable()
-                .allowedStates("Ready")
+                .allowedStates(State.ACTIVE)
                 .commit()
         ,
         ###################################

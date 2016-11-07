@@ -12,7 +12,7 @@ setup(name='simulatedCameraPy',
       package_dir={'': 'src'},
       packages=find_packages('src'),
       entry_points={
-          'karabo.python_device.api_1': [
+          'karabo.bound_device': [
               'SimulatedCameraPy = simulatedCameraPy.SimulatedCameraPy:SimulatedCameraPy',
           ],
       },
