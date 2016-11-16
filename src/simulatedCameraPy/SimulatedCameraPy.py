@@ -15,7 +15,7 @@ import scipy.stats
 
 from karabo.bound import (
     KARABO_CLASSINFO, PythonDevice, launchPythonDevice, Worker, 
-    CameraInterface, ImageData, Unit, State,
+    CameraInterface, Hash, ImageData, Unit, State,
     BOOL_ELEMENT, DOUBLE_ELEMENT, INT32_ELEMENT, PATH_ELEMENT, STRING_ELEMENT
 )
 
@@ -58,7 +58,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             self.pollWorker = None
         
         # Stop acquisition, if running
-        if self.get("state")=="Acquiring":
+        if self.get("state")==State.ACQUIRING:
             self.stop()
         
         super(SimulatedCameraPy, self).__del__()
@@ -162,8 +162,8 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         
     def initialize(self):
         self.log.INFO("SimulatedCameraPy.initialize")
-        
-        self.updateState("Initializing")
+
+        self.updateState(State.INIT)
         
         # Camera model
         self.set("cameraModel", "simCam")
@@ -214,9 +214,9 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             timeout = 1000*self.get("pollInterval") # to milliseconds
             self.pollWorker = Worker(self.pollHardware, timeout, -1).start()
         
-        # Sleep a while (to simulate camera initialization), then go to "Ready"
+        # Sleep a while (to simulate camera initialization), then go to "ACTIVE"
         time.sleep(1)
-        self.updateState("Ready")
+        self.updateState(State.ACTIVE)
     
     def acquire(self):
         self.log.INFO("SimulatedCameraPy.acquire")
@@ -246,7 +246,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         self.acquireThread.start()
         
         # Change state
-        self.updateState("Acquiring")
+        self.updateState(State.ACQUIRING)
         self.set("cameraAcquiring", True)
     
     def trigger(self):
@@ -274,11 +274,11 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             self.acquireThread.join(10.)
         
         self.set("cameraAcquiring", False)
-        self.updateState("Ready")
+        self.updateState(State.ACTIVE)
     
     def resetHardware(self):
         self.log.INFO("SimulatedCameraPy.resetHardware")
-        self.updateState("Ready")
+        self.updateState(State.ACTIVE)
     
     def pollHardware(self):
         self.log.DEBUG("SimulatedCameraPy.pollHardware")
@@ -304,9 +304,9 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         
         saveImages = self.get("imageStorage.enable")
         pixelGain = self.get("pixelGain")
-        image = numpy.copy(self.image) # Copy original image
-        image *= pixelGain # Apply pixel gain to copy
-        
+        # Copy original image and apply gain
+        image = (self.image*pixelGain).astype(self.image.dtype)
+
         while self.keepAcquiring:
 
             try:
@@ -345,9 +345,8 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                     image = numpy.roll(image, w)
                     image2 = image
 
-                # Construct image data object in parts
-                imageData = ImageData(image2)
-                self.writeChannel("output", "image", imageData)
+                # Write image via p2p
+                self.writeChannel("output", Hash("image", ImageData(image2)))
 
                 if saveImages:
                     # Create filename (without path and extension)
@@ -368,14 +367,14 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 if cycleModeIsFixed and frames>=frameCount:
                     # change state, quit loop
                     self.set("cameraAcquiring", False)
-                    self.updateState("Ready")
+                    self.updateState(State.ACTIVE)
                     break
 
             except Exception as e:
                 # log error, change state, quit loop
                 self.log.ERROR("SimulatedCameraPy.acquireImages: " + str(e))
                 self.set("cameraAcquiring", False)
-                self.updateState("HardwareError")
+                self.updateState(State.ERROR)
                 break
 
 
