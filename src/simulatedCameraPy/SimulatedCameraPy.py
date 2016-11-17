@@ -64,96 +64,97 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         '''Description of device parameters statically known'''
         (
             STRING_ELEMENT(expected).key("imageType")
-            .displayedName("Image Type")
-            .description("Select the simulated image type")
-            .options("2d_Gaussian,RGB_Image,Grayscale_Image,"
-                     "Load_from_file")
-            .assignmentOptional().defaultValue("Load_from_file")
-            .init()
-            .commit(),
+                .displayedName("Image Type")
+                .description("Select the simulated image type")
+                .options("2d_Gaussian,RGB_Image,Grayscale_Image,"
+                         "Load_from_file")
+                .assignmentOptional().defaultValue("Load_from_file")
+                .init()
+                .commit(),
 
             PATH_ELEMENT(expected).key("imageFilename")
-            .displayedName("Image Filename")
-            .description("The full filename to the fake image displayed "
-                         "by the camera. File format must be 'npy'.")
-            .assignmentOptional()
-            .defaultValue("european-xfel-logo-greyscales.npy")
-            .init()
-            .commit(),
+                .displayedName("Image Filename")
+                .description("The full filename to the fake image displayed "
+                             "by the camera. File format must be 'npy'.")
+                .assignmentOptional()
+                .defaultValue("european-xfel-logo-greyscales.npy")
+                .init()
+                .commit(),
 
             DOUBLE_ELEMENT(expected).key("pixelGain")
-            .displayedName("Pixel Gain")
-            .description("The pixel gain")
-            .assignmentOptional().defaultValue(0.5)
-            .minInc(0.001)
-            .maxInc(1.000)
-            .reconfigurable()
-            .commit(),
+                .displayedName("Pixel Gain")
+                .description("The pixel gain")
+                .assignmentOptional().defaultValue(0.5)
+                .minInc(0.001)
+                .maxInc(1.000)
+                .reconfigurable()
+                .commit(),
 
             STRING_ELEMENT(expected).key("cycleMode")
-            .displayedName("Cycle Mode")
-            .description("Configures whether the camera will acquire a "
-                         "fixed length sequence or a continuous sequence")
-            .assignmentOptional().defaultValue("Continuous")
-            .options("Fixed Continuous")
-            .reconfigurable()
-            .allowedStates(State.ACTIVE)
-            .commit(),
+                .displayedName("Cycle Mode")
+                .description("Configures whether the camera will acquire a "
+                             "fixed length sequence or a continuous sequence")
+                .assignmentOptional().defaultValue("Continuous")
+                .options("Fixed Continuous")
+                .reconfigurable()
+                .allowedStates(State.ACTIVE)
+                .commit(),
 
             INT32_ELEMENT(expected).key("frameCount")
-            .displayedName("Frame Count")
-            .description("Configures the number of images to acquire in the "
-                         "sequence, when the camera is in 'Fixed' Mode")
-            .assignmentOptional().defaultValue(1)
-            .reconfigurable()
-            .allowedStates(State.ACTIVE)
-            .commit(),
+                .displayedName("Frame Count")
+                .description("Configures the number of images to acquire in "
+                             "the sequence, when the camera is in 'Fixed' "
+                             "Mode")
+                .assignmentOptional().defaultValue(1)
+                .reconfigurable()
+                .allowedStates(State.ACTIVE)
+                .commit(),
 
             STRING_ELEMENT(expected).key("triggerMode")
-            .displayedName("Trigger Mode")
-            .description("Allows the user to configure the camera trigger"
-                         " mode at a high level")
-            .assignmentOptional().defaultValue("Internal")
-            .options("Internal Software")
-            .reconfigurable()
-            .allowedStates(State.ACTIVE)
-            .commit(),
+                .displayedName("Trigger Mode")
+                .description("Allows the user to configure the camera trigger"
+                             " mode at a high level")
+                .assignmentOptional().defaultValue("Internal")
+                .options("Internal Software")
+                .reconfigurable()
+                .allowedStates(State.ACTIVE)
+                .commit(),
 
             ###################################
             #  READ ONLY HARDWARE PARAMETERS  #
             ###################################
             DOUBLE_ELEMENT(expected).key("sensorTemperature")
-            .displayedName("Sensor Temperature")
-            .description("Returns the temperature of the sensor in Celsius "
-                         "degrees")
-            .unit(Unit.DEGREE_CELSIUS)
-            .readOnly()
-            .commit(),
+                .displayedName("Sensor Temperature")
+                .description("Returns the temperature of the sensor in "
+                             "Celsius degrees")
+                .unit(Unit.DEGREE_CELSIUS)
+                .readOnly()
+                .commit(),
 
             INT32_ELEMENT(expected).key("sensorWidth")
-            .displayedName("Sensor Width")
-            .description("Returns the width of the sensor in pixels")
-            .readOnly()
-            .commit(),
+                .displayedName("Sensor Width")
+                .description("Returns the width of the sensor in pixels")
+                .readOnly()
+                .commit(),
 
             INT32_ELEMENT(expected).key("sensorHeight")
-            .displayedName("Sensor Height")
-            .description("Returns the height of the sensor in pixels")
-            .readOnly()
-            .commit(),
+                .displayedName("Sensor Height")
+                .description("Returns the height of the sensor in pixels")
+                .readOnly()
+                .commit(),
 
             BOOL_ELEMENT(expected).key("cameraAcquiring")
-            .displayedName("Camera Acquiring")
-            .description("Returns whether or not an acquisition is "
-                         "currently running")
-            .readOnly()
-            .commit(),
+                .displayedName("Camera Acquiring")
+                .description("Returns whether or not an acquisition is "
+                             "currently running")
+                .readOnly()
+                .commit(),
 
             STRING_ELEMENT(expected).key("cameraModel")
-            .displayedName("Camera Model")
-            .description("Returns the camera model")
-            .readOnly()
-            .commit(),
+                .displayedName("Camera Model")
+                .description("Returns the camera model")
+                .readOnly()
+                .commit(),
         )
 
     def preReconfigure(self, inputConfig):
