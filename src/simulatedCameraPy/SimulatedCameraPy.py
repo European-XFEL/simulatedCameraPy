@@ -1,18 +1,24 @@
 #!/usr/bin/env python
 
+#############################################################################
+# Author: <andrea.parenti@xfel.eu>
+# Created on November 12, 2013
+# Copyright (C) European XFEL GmbH Hamburg. All rights reserved.
+#############################################################################
+
 import os
-import time
 import random
 import threading
+import time
 
-import numpy
+import numpy as np
 import scipy.misc
 import scipy.stats
 
 from karabo.bound import (
-    KARABO_CLASSINFO, PythonDevice, launchPythonDevice, Worker,
-    CameraInterface, Hash, ImageData, Unit, State,
-    BOOL_ELEMENT, DOUBLE_ELEMENT, INT32_ELEMENT, PATH_ELEMENT, STRING_ELEMENT
+    BOOL_ELEMENT, DOUBLE_ELEMENT, INT32_ELEMENT, KARABO_CLASSINFO,
+    PATH_ELEMENT, STRING_ELEMENT, CameraInterface, Hash, ImageData,
+    PythonDevice, State, Unit, Worker, launchPythonDevice
 )
 
 
@@ -27,7 +33,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         self.pollWorker = None
 
         self.keepAcquiring = False
-        self.swTrgReceived = False
+        self.swTriggerReceived = False
 
         # Sample Image
         self.image = None
@@ -45,16 +51,14 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         self.acquireThread = None
 
     def __del__(self):
-
         # Stop polling camera
         if self.pollWorker is not None:
             if self.pollWorker.is_running():
                 self.pollWorker.stop()
             self.pollWorker.join()
-            self.pollWorker = None
 
         # Stop acquisition, if running
-        if self.get("state") == State.ACQUIRING:
+        if self.get("state") is State.ACQUIRING:
             self.stop()
 
         super(SimulatedCameraPy, self).__del__()
@@ -177,37 +181,39 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             if imageType == "2d_Gaussian":
                 # 2d Gaussian, no rotation
                 rvx = scipy.stats.norm(300, 50)
-                x = rvx.pdf(numpy.arange(800))  # 1d gaussian
+                x = rvx.pdf(np.arange(800))  # 1d gaussian
                 rvy = scipy.stats.norm(200, 75)
-                y = rvy.pdf(numpy.arange(600))  # 1d gaussian
-                z = numpy.outer(y, x)  # 2d gaussian (float64)
-                data = (z / z.max() * 0.5 * numpy.iinfo('uint16').max)\
-                    .astype('uint16')  # -> uint16
+                y = rvy.pdf(np.arange(600))  # 1d gaussian
+                z = np.outer(y, x)  # 2d gaussian (float64)
+                data = (
+                    z / z.max() * 0.5 * np.iinfo('uint16').max
+                ).astype('uint16')  # -> uint16
                 self.log.INFO('2d gaussian image loaded')
             elif imageType == 'RGB_Image':
                 # RGB image
-                data = numpy.append(
-                    numpy.append(
-                        [[255, 0, 0] * 67500], [[0, 255, 0] * 67500]),
-                    [[0, 0, 255] * 67500])\
-                    .reshape(450, 450, 3).astype('uint16')
+                red = [255, 0, 0]
+                green = [0, 255, 0]
+                blue = [0, 0, 255]
+                data = np.append(
+                    np.append([red * 67500], [green * 67500]), [blue * 67500]
+                ).reshape(450, 450, 3).astype('uint16')
                 self.log.INFO('RGB image loaded')
             elif imageType == 'Load_from_file':
                 # Try to load image file
                 filename = self.get("imageFilename")
-                data = numpy.load(filename)
-                self.log.INFO('Image loaded from file ' + filename)
+                data = np.load(filename)
+                self.log.INFO('Image loaded from file %s' % filename)
             else:
                 # Default image, grayscale, vertical gradient
-                a = numpy.arange(500, dtype=numpy.uint16)
-                b = numpy.array([a] * 1000)
-                data = numpy.rot90(b)
+                a = np.arange(500, dtype=np.uint16)
+                b = np.array([a] * 1000)
+                data = np.rot90(b)
                 self.log.INFO('Default image (grayscale) loaded')
         except Exception as e:
             # Default image, grayscale, vertical gradient
-            a = numpy.arange(500, dtype=numpy.uint16)
-            b = numpy.array([a] * 1000)
-            data = numpy.rot90(b)
+            a = np.arange(500, dtype=np.uint16)
+            b = np.array([a] * 1000)
+            data = np.rot90(b)
             self.log.WARN(str(e))
             self.log.INFO('Default image (grayscale) loaded')
 
@@ -250,7 +256,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
 
         # Start acquire thread, since slots cannot block
         self.keepAcquiring = True
-        self.swTrgReceived = False
+        self.swTriggerReceived = False
         self.acquireThread = threading.Thread(target=self.acquireImages)
         self.acquireThread.start()
 
@@ -263,7 +269,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
 
         # Will notify acquireImages to continue
         self.condVar.acquire()
-        self.swTrgReceived = True
+        self.swTriggerReceived = True
         self.condVar.notify_all()
         self.condVar.release()
 
@@ -275,12 +281,12 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         # If running with software trigger,
         # must notify acquire thread to continue
         self.condVar.acquire()
-        self.swTrgReceived = False
+        self.swTriggerReceived = False
         self.condVar.notify_all()
         self.condVar.release()
 
         # Wait for acquire thread to join
-        if (self.acquireThread is not None and self.acquireThread.isAlive()):
+        if self.acquireThread is not None and self.acquireThread.isAlive():
             self.acquireThread.join(10.)
 
         self.set("cameraAcquiring", False)
@@ -328,11 +334,11 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                     self.condVar.wait()
                     self.condVar.release()
 
-                    if not self.swTrgReceived:
+                    if not self.swTriggerReceived:
                         # No sw trigger -> continue
                         continue
                     else:
-                        self.swTrgReceived = False
+                        self.swTriggerReceived = False
 
                 exposureTime = self.get("exposureTime")
                 newPixelGain = self.get("pixelGain")
@@ -348,12 +354,12 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 imageType = self.get("imageType")
                 if imageType == '2d_Gaussian':
                     # Add some random noise
-                    image2 = image + numpy.random.\
-                        uniform(high=20, size=image.shape).astype('uint8')
+                    noise = np.random.uniform(high=20, size=image.shape)
+                    image2 = image + noise.astype('uint8')
                 else:
                     # Roll image by 10 lines
                     w = 10 * image.shape[0]
-                    image = numpy.roll(image, w)
+                    image = np.roll(image, w)
                     image2 = image
 
                 # Write image via p2p
@@ -363,11 +369,10 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                     # Create filename (without path and extension)
                     imgname = "%s%06ld" % (self.fileName, self.fileCounter)
                     # Prepend path and append extension
-                    imgname = os.path.join(self.filePath, imgname + "." +
-                                           self.fileType)
+                    imgname = os.path.join(self.filePath, "{}.{}"
+                                           .format(imgname, self.fileType))
 
-                    if self.fileType == "tif" or self.fileType == "jpg"\
-                            or self.fileType == "png":
+                    if self.fileType in ["tif", "jpg", "png"]:
                         # PIL must installed!
                         scipy.misc.imsave(imgname, image2)
                     else:
@@ -385,7 +390,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
 
             except Exception as e:
                 # log error, change state, quit loop
-                self.log.ERROR("SimulatedCameraPy.acquireImages: " + str(e))
+                self.log.ERROR("SimulatedCameraPy.acquireImages: %s" % str(e))
                 self.set("cameraAcquiring", False)
                 self.updateState(State.ERROR)
                 break
