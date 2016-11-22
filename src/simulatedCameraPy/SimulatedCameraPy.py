@@ -6,14 +6,13 @@
 # Copyright (C) European XFEL GmbH Hamburg. All rights reserved.
 #############################################################################
 
+import numpy as np
 import os
 import random
-import threading
-import time
-
-import numpy as np
 import scipy.misc
 import scipy.stats
+import threading
+import time
 
 from karabo.bound import (
     BOOL_ELEMENT, DOUBLE_ELEMENT, INT32_ELEMENT, KARABO_CLASSINFO,
@@ -49,19 +48,6 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         self.condVar = threading.Condition(self.condLock)
         # Acquire thread
         self.acquireThread = None
-
-    def __del__(self):
-        # Stop polling camera
-        if self.pollWorker is not None:
-            if self.pollWorker.is_running():
-                self.pollWorker.stop()
-            self.pollWorker.join()
-
-        # Stop acquisition, if running
-        if self.get("state") is State.ACQUIRING:
-            self.stop()
-
-        super(SimulatedCameraPy, self).__del__()
 
     @staticmethod
     def expectedParameters(expected):
@@ -226,7 +212,9 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         if self.pollWorker is None:
             # Create and start poll worker
             timeout = 1000 * self.get("pollInterval")  # to milliseconds
-            self.pollWorker = Worker(self.pollHardware, timeout, -1).start()
+            self.pollWorker = Worker(self.pollHardware, timeout, -1)
+            self.pollWorker.daemon = True
+            self.pollWorker.start()
 
         # Sleep a while (to simulate camera initialization),
         # then go to "ACTIVE"
@@ -258,6 +246,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         self.keepAcquiring = True
         self.swTriggerReceived = False
         self.acquireThread = threading.Thread(target=self.acquireImages)
+        self.acquireThread.daemon = True
         self.acquireThread.start()
 
         # Change state
