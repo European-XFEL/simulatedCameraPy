@@ -21,7 +21,7 @@ from karabo.bound import (
 )
 
 
-@KARABO_CLASSINFO("SimulatedCameraPy", "2.0")
+@KARABO_CLASSINFO("SimulatedCameraPy", "2.2")
 class SimulatedCameraPy(PythonDevice, CameraInterface):
     def __init__(self, configuration):
         # always call PythonDevice constructor first!
@@ -53,6 +53,13 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
     def expectedParameters(expected):
         '''Description of device parameters statically known'''
         (
+            BOOL_ELEMENT(expected).key("autoConnect")
+                .displayedName("Auto Connect")
+                .description("Auto-connect to the camera")
+                .assignmentMandatory()
+                .init()
+                .commit(),
+
             STRING_ELEMENT(expected).key("imageType")
                 .displayedName("Image Type")
                 .description("Select the simulated image type")
@@ -216,9 +223,23 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             self.pollWorker.daemon = True
             self.pollWorker.start()
 
-        # Sleep a while (to simulate camera initialization),
-        # then go to "ACTIVE"
+        # Sleep a while (to simulate camera initialization)
         time.sleep(1)
+
+        # Change state, depending on the "autoConnect" option
+        autoConnect = False
+        try:
+            autoConnect = self.get("autoConnect")
+        except:
+            # Default: autoConnect = False
+            pass
+        if autoConnect:
+            self.updateState(State.ACTIVE)
+        else:
+            self.updateState(State.UNKNOWN)
+
+    def connectCamera(self):
+        self.log.INFO("SimulatedCameraPy.connectCamera")
         self.updateState(State.ACTIVE)
 
     def acquire(self):
@@ -352,7 +373,9 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                     image2 = image
 
                 # Write image via p2p
-                self.writeChannel("output", Hash("image", ImageData(image2)))
+                imageData = ImageData(image2)
+                imageData.setHeader(Hash("blockId", frames, "receptionTime", round(time.time())))
+                self.writeChannel("output", Hash("image", imageData))
 
                 if saveImages:
                     # Create filename (without path and extension)
