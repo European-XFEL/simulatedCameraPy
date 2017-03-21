@@ -94,7 +94,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 .assignmentOptional().defaultValue("Continuous")
                 .options("Fixed Continuous")
                 .reconfigurable()
-                .allowedStates(State.ACTIVE)
+                .allowedStates(State.STOPPED)
                 .commit(),
 
             INT32_ELEMENT(expected).key("frameCount")
@@ -104,7 +104,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                              "Mode")
                 .assignmentOptional().defaultValue(1)
                 .reconfigurable()
-                .allowedStates(State.ACTIVE)
+                .allowedStates(State.STOPPED)
                 .commit(),
 
             STRING_ELEMENT(expected).key("triggerMode")
@@ -114,7 +114,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 .assignmentOptional().defaultValue("Internal")
                 .options("Internal Software")
                 .reconfigurable()
-                .allowedStates(State.ACTIVE)
+                .allowedStates(State.STOPPED)
                 .commit(),
 
             ###################################
@@ -234,13 +234,13 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             # Default: autoConnect = False
             pass
         if autoConnect:
-            self.updateState(State.ACTIVE)
+            self.updateState(State.STOPPED)
         else:
             self.updateState(State.UNKNOWN)
 
     def connectCamera(self):
         self.log.INFO("SimulatedCameraPy.connectCamera")
-        self.updateState(State.ACTIVE)
+        self.updateState(State.STOPPED)
 
     def acquire(self):
         self.log.INFO("SimulatedCameraPy.acquire")
@@ -300,11 +300,11 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             self.acquireThread.join(10.)
 
         self.set("cameraAcquiring", False)
-        self.updateState(State.ACTIVE)
+        self.updateState(State.STOPPED)
 
     def resetHardware(self):
         self.log.INFO("SimulatedCameraPy.resetHardware")
-        self.updateState(State.ACTIVE)
+        self.updateState(State.STOPPED)
 
     def pollHardware(self):
         self.log.DEBUG("SimulatedCameraPy.pollHardware")
@@ -397,7 +397,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 if cycleModeIsFixed and frames >= frameCount:
                     # change state, quit loop
                     self.set("cameraAcquiring", False)
-                    self.updateState(State.ACTIVE)
+                    self.updateState(State.STOPPED)
                     break
 
             except Exception as e:
