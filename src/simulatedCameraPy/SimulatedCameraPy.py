@@ -227,12 +227,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         time.sleep(1)
 
         # Change state, depending on the "autoConnect" option
-        autoConnect = False
-        try:
-            autoConnect = self.get("autoConnect")
-        except:
-            # Default: autoConnect = False
-            pass
+        autoConnect = self.get("autoConnect")
         if autoConnect:
             self.updateState(State.STOPPED)
         else:
