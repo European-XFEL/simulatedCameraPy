@@ -21,7 +21,7 @@ from karabo.bound import (
 )
 
 
-@KARABO_CLASSINFO("SimulatedCameraPy", "2.2")
+@KARABO_CLASSINFO("SimulatedCameraPy", "2.1")
 class SimulatedCameraPy(PythonDevice, CameraInterface):
     def __init__(self, configuration):
         # always call PythonDevice constructor first!
