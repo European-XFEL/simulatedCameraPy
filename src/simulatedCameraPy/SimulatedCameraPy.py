@@ -21,7 +21,7 @@ from karabo.bound import (
 )
 
 
-@KARABO_CLASSINFO("SimulatedCameraPy", "2.0")
+@KARABO_CLASSINFO("SimulatedCameraPy", "2.1")
 class SimulatedCameraPy(PythonDevice, CameraInterface):
     def __init__(self, configuration):
         # always call PythonDevice constructor first!
@@ -53,6 +53,13 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
     def expectedParameters(expected):
         '''Description of device parameters statically known'''
         (
+            BOOL_ELEMENT(expected).key("autoConnect")
+                .displayedName("Auto Connect")
+                .description("Auto-connect to the camera")
+                .assignmentMandatory()
+                .init()
+                .commit(),
+
             STRING_ELEMENT(expected).key("imageType")
                 .displayedName("Image Type")
                 .description("Select the simulated image type")
@@ -87,7 +94,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 .assignmentOptional().defaultValue("Continuous")
                 .options("Fixed Continuous")
                 .reconfigurable()
-                .allowedStates(State.ACTIVE)
+                .allowedStates(State.STOPPED)
                 .commit(),
 
             INT32_ELEMENT(expected).key("frameCount")
@@ -97,7 +104,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                              "Mode")
                 .assignmentOptional().defaultValue(1)
                 .reconfigurable()
-                .allowedStates(State.ACTIVE)
+                .allowedStates(State.STOPPED)
                 .commit(),
 
             STRING_ELEMENT(expected).key("triggerMode")
@@ -107,7 +114,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 .assignmentOptional().defaultValue("Internal")
                 .options("Internal Software")
                 .reconfigurable()
-                .allowedStates(State.ACTIVE)
+                .allowedStates(State.STOPPED)
                 .commit(),
 
             ###################################
@@ -216,10 +223,19 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             self.pollWorker.daemon = True
             self.pollWorker.start()
 
-        # Sleep a while (to simulate camera initialization),
-        # then go to "ACTIVE"
+        # Sleep a while (to simulate camera initialization)
         time.sleep(1)
-        self.updateState(State.ACTIVE)
+
+        # Change state, depending on the "autoConnect" option
+        autoConnect = self.get("autoConnect")
+        if autoConnect:
+            self.updateState(State.STOPPED)
+        else:
+            self.updateState(State.UNKNOWN)
+
+    def connectCamera(self):
+        self.log.INFO("SimulatedCameraPy.connectCamera")
+        self.updateState(State.STOPPED)
 
     def acquire(self):
         self.log.INFO("SimulatedCameraPy.acquire")
@@ -279,11 +295,11 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             self.acquireThread.join(10.)
 
         self.set("cameraAcquiring", False)
-        self.updateState(State.ACTIVE)
+        self.updateState(State.STOPPED)
 
     def resetHardware(self):
         self.log.INFO("SimulatedCameraPy.resetHardware")
-        self.updateState(State.ACTIVE)
+        self.updateState(State.STOPPED)
 
     def pollHardware(self):
         self.log.DEBUG("SimulatedCameraPy.pollHardware")
@@ -352,7 +368,9 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                     image2 = image
 
                 # Write image via p2p
-                self.writeChannel("output", Hash("image", ImageData(image2)))
+                imageData = ImageData(image2)
+                imageData.setHeader(Hash("blockId", frames, "receptionTime", round(time.time())))
+                self.writeChannel("output", Hash("image", imageData))
 
                 if saveImages:
                     # Create filename (without path and extension)
@@ -374,7 +392,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 if cycleModeIsFixed and frames >= frameCount:
                     # change state, quit loop
                     self.set("cameraAcquiring", False)
-                    self.updateState(State.ACTIVE)
+                    self.updateState(State.STOPPED)
                     break
 
             except Exception as e:
