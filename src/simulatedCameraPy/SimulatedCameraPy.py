@@ -17,7 +17,7 @@ import time
 from karabo.bound import (
     BOOL_ELEMENT, DOUBLE_ELEMENT, INT32_ELEMENT, KARABO_CLASSINFO,
     PATH_ELEMENT, STRING_ELEMENT, CameraInterface, Hash, ImageData,
-    PythonDevice, State, Unit, Worker, launchPythonDevice
+    PythonDevice, State, Unit, Worker
 )
 
 
@@ -372,7 +372,8 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
 
                 # Write image via p2p
                 imageData = ImageData(image2)
-                imageData.setHeader(Hash("blockId", frames, "receptionTime", round(time.time())))
+                imageData.setHeader(Hash("blockId", frames, "receptionTime",
+                                         round(time.time())))
                 self.writeChannel("output", Hash("image", imageData))
 
                 if saveImages:
@@ -405,7 +406,13 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 self.updateState(State.ERROR)
                 break
 
+    def preDestruction(self):
+        # Stop polling camera
+        if self.pollWorker:
+            if self.pollWorker.is_running():
+                self.pollWorker.stop()
+            self.pollWorker.join()
 
-# This entry used by device server
-if __name__ == "__main__":
-    launchPythonDevice()
+        # Stop acquisition, if running
+        if self.get_state() == State.ACQUIRING:
+            self.execute("stop")
