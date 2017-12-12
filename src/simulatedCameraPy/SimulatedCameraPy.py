@@ -21,7 +21,7 @@ from karabo.bound import (
 )
 
 
-@KARABO_CLASSINFO("SimulatedCameraPy", "2.1")
+@KARABO_CLASSINFO("SimulatedCameraPy", "2.2")
 class SimulatedCameraPy(PythonDevice, CameraInterface):
     def __init__(self, configuration):
         # always call PythonDevice constructor first!
@@ -94,7 +94,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 .assignmentOptional().defaultValue("Continuous")
                 .options("Fixed Continuous")
                 .reconfigurable()
-                .allowedStates(State.STOPPED)
+                .allowedStates(State.ON)
                 .commit(),
 
             INT32_ELEMENT(expected).key("frameCount")
@@ -104,7 +104,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                              "Mode")
                 .assignmentOptional().defaultValue(1)
                 .reconfigurable()
-                .allowedStates(State.STOPPED)
+                .allowedStates(State.ON)
                 .commit(),
 
             STRING_ELEMENT(expected).key("triggerMode")
@@ -114,7 +114,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 .assignmentOptional().defaultValue("Internal")
                 .options("Internal Software")
                 .reconfigurable()
-                .allowedStates(State.STOPPED)
+                .allowedStates(State.ON)
                 .commit(),
 
             ###################################
@@ -229,13 +229,13 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         # Change state, depending on the "autoConnect" option
         autoConnect = self.get("autoConnect")
         if autoConnect:
-            self.updateState(State.STOPPED)
+            self.updateState(State.ON)
         else:
             self.updateState(State.UNKNOWN)
 
     def connectCamera(self):
         self.log.INFO("SimulatedCameraPy.connectCamera")
-        self.updateState(State.STOPPED)
+        self.updateState(State.ON)
 
     def acquire(self):
         self.log.INFO("SimulatedCameraPy.acquire")
@@ -298,11 +298,11 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         self.signalEndOfStream("output")
 
         self.set("cameraAcquiring", False)
-        self.updateState(State.STOPPED)
+        self.updateState(State.ON)
 
     def resetHardware(self):
         self.log.INFO("SimulatedCameraPy.resetHardware")
-        self.updateState(State.STOPPED)
+        self.updateState(State.ON)
 
     def pollHardware(self):
         self.log.DEBUG("SimulatedCameraPy.pollHardware")
@@ -396,7 +396,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 if cycleModeIsFixed and frames >= frameCount:
                     # change state, quit loop
                     self.set("cameraAcquiring", False)
-                    self.updateState(State.STOPPED)
+                    self.updateState(State.ON)
                     break
 
             except Exception as e:
