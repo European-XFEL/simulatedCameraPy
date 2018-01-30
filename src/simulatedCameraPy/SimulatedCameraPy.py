@@ -414,5 +414,5 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             self.pollWorker.join()
 
         # Stop acquisition, if running
-        if self.get_state() == State.ACQUIRING:
+        if self.get('state') == State.ACQUIRING:
             self.execute("stop")
