@@ -36,6 +36,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
 
         # Sample Image
         self.image = None
+        self.newImgAvailable = False
 
         self.filePath = ""
         self.fileName = ""
@@ -214,6 +215,32 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             timeout = 1000 * inputConfig.get("pollInterval")  # to milliseconds
             self.pollWorker.setTimeout(timeout)
 
+        if inputConfig.has('gaussian'):
+            imageType = self['imageType']
+            if inputConfig.has('imageType'):
+                imageType = inputConfig['inputConfig']
+
+            if imageType == '2d_Gaussian':
+                pars = []
+                for k in ['posX', 'sigmaX', 'posY', 'sigmaY', 'imageSizeX',
+                          'imageSizeY']:
+                    key = 'gaussian.' + k
+                    if inputConfig.has(key):
+                        pars.append(inputConfig[key])
+                    else:
+                        pars.append(self[key])
+
+                # 2d Gaussian, no rotation
+                # pos_x, sigma_x, pos_y, sigma_y, im_size_x, im_size_y
+                data = self.create_gaussian(*pars)
+                self.image = data
+                self.newImgAvailable = True
+                self.log.INFO('Gaussian image updated')
+
+                # Sensor geometry
+                self.set("sensorHeight", data.shape[0])
+                self.set("sensorWidth", data.shape[1])
+
     def create_gaussian(self, pos_x, sigma_x, pos_y, sigma_y,
                         im_size_x, im_size_y):
         rvx = scipy.stats.norm(pos_x, sigma_x)
@@ -273,6 +300,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             self.log.INFO('Default image (grayscale) loaded')
 
         self.image = data
+        self.newImgAvailable = True
 
         # Sensor geometry
         self.set("sensorHeight", data.shape[0])
@@ -389,10 +417,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         frames = 0
 
         saveImages = self.get("imageStorage.enable")
-        pixelGain = self.get("pixelGain")
-
-        # Copy original image and apply gain
-        image = (self.image * pixelGain).astype(self.image.dtype)
+        pixelGain = None
 
         while self.keepAcquiring:
 
@@ -417,20 +442,15 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 # Sleep for "exposureTime" to simulate image acquisition
                 time.sleep(exposureTime)
 
-                # Pixel gain has changed
-                if newPixelGain != pixelGain:
-                    image *= newPixelGain / pixelGain
+                if self.newImgAvailable or newPixelGain != pixelGain:
+                    # Copy original image and apply gain
+                    image = (self.image * newPixelGain).astype(self.image.dtype)
                     pixelGain = newPixelGain
+                    self.newImgAvailable = False
 
                 imageType = self.get("imageType")
                 if imageType == '2d_Gaussian':
                     # Add some random noise
-                    image = self.create_gaussian(
-                        self['gaussian.posX'], self['gaussian.sigmaX'],
-                        self['gaussian.posY'], self['gaussian.sigmaY'],
-                        self['gaussian.imageSizeX'],
-                        self['gaussian.imageSizeY'])
-
                     noise = np.random.uniform(high=20, size=image.shape)
                     image2 = image + noise.astype('uint8')
                 else:
