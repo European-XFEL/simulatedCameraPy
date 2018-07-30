@@ -463,7 +463,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 imageData = ImageData(image2)
                 imageData.setHeader(Hash("blockId", frames, "receptionTime",
                                          round(time.time())))
-                self.writeChannel("output", Hash("image", imageData))
+                self.writeChannel("output", Hash("data.image", imageData))
 
                 if saveImages:
                     # Create filename (without path and extension)
