@@ -222,7 +222,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
 
             if imageType == '2d_Gaussian':
                 pars = []
-                for k in ['posX', 'sigmaX', 'posY', 'sigmaY', 'imageSizeX',
+                for k in ['posX', 'posY', 'sigmaX', 'sigmaY', 'imageSizeX',
                           'imageSizeY']:
                     key = 'gaussian.' + k
                     if inputConfig.has(key):
@@ -241,7 +241,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 self.set("sensorHeight", data.shape[0])
                 self.set("sensorWidth", data.shape[1])
 
-    def create_gaussian(self, pos_x, sigma_x, pos_y, sigma_y,
+    def create_gaussian(self, pos_x, pos_y, sigma_x, sigma_y,
                         im_size_x, im_size_y):
         rvx = scipy.stats.norm(pos_x, sigma_x)
         x = rvx.pdf(np.arange(im_size_x))  # 1d gaussian
@@ -267,8 +267,8 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 # 2d Gaussian, no rotation
                 # pos_x, sigma_x, pos_y, sigma_y, im_size_x, im_size_y
                 data = self.create_gaussian(
-                    self['gaussian.posX'], self['gaussian.sigmaX'],
-                    self['gaussian.posY'], self['gaussian.sigmaY'],
+                    self['gaussian.posX'], self['gaussian.posY'],
+                    self['gaussian.sigmaX'], self['gaussian.sigmaY'],
                     self['gaussian.imageSizeX'], self['gaussian.imageSizeY'])
                 self.log.INFO('Gaussian image created')
             elif imageType == 'RGB_Image':
