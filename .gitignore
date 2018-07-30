@@ -1,12 +1,6 @@
-nbproject/Makefile-*.mk
-nbproject/private
-nbproject/Package-*.bash
-nbproject/Makefile-*.mk
-nbproject/private
-nbproject/Package-*.bash
-*/nbproject/Makefile-*.mk
-*/nbproject/private
-*/nbproject/Package-*.bash
+src/simulatedCameraPy.egg-info/
+src/simulatedCameraPy/__pycache__/
+*.pyc
 dist/
 build/
 .dep.inc

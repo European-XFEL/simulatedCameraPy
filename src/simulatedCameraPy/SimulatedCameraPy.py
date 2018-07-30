@@ -15,9 +15,9 @@ import threading
 import time
 
 from karabo.bound import (
-    BOOL_ELEMENT, DOUBLE_ELEMENT, INT32_ELEMENT, KARABO_CLASSINFO,
-    PATH_ELEMENT, STRING_ELEMENT, CameraInterface, Hash, ImageData,
-    PythonDevice, State, Unit, Worker
+    BOOL_ELEMENT, DOUBLE_ELEMENT, FLOAT_ELEMENT, INT32_ELEMENT,
+    KARABO_CLASSINFO, PATH_ELEMENT, NODE_ELEMENT, STRING_ELEMENT,
+    CameraInterface, Hash, ImageData, PythonDevice, State, Unit, Worker
 )
 
 
@@ -36,6 +36,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
 
         # Sample Image
         self.image = None
+        self.newImgAvailable = False
 
         self.filePath = ""
         self.fileName = ""
@@ -65,8 +66,62 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 .description("Select the simulated image type")
                 .options("2d_Gaussian,RGB_Image,Grayscale_Image,"
                          "Load_from_file")
-                .assignmentOptional().defaultValue("Load_from_file")
+                .assignmentOptional().defaultValue("2d_Gaussian")
                 .init()
+                .commit(),
+
+            NODE_ELEMENT(expected).key("gaussian")
+                .displayedName("Gaussian Parameters")
+                .commit(),
+
+            INT32_ELEMENT(expected).key("gaussian.imageSizeX")
+                .displayedName("Image Width")
+                .description("The size x of the image")
+                .assignmentOptional().defaultValue(800)
+                .minInc(800)
+                .maxInc(1600)
+                .reconfigurable()
+                .commit(),
+
+            INT32_ELEMENT(expected).key("gaussian.imageSizeY")
+                .displayedName("Image Height")
+                .description("The size y of the image")
+                .assignmentOptional().defaultValue(600)
+                .minInc(600)
+                .maxInc(1200)
+                .reconfigurable()
+                .commit(),
+
+            FLOAT_ELEMENT(expected).key("gaussian.posX")
+                .displayedName("Position X")
+                .description("The position x of the gaussian")
+                .assignmentOptional().defaultValue(400)
+                .minInc(0)
+                .reconfigurable()
+                .commit(),
+
+            FLOAT_ELEMENT(expected).key("gaussian.posY")
+                .displayedName("Position Y")
+                .description("The position Y of the gaussian")
+                .assignmentOptional().defaultValue(300)
+                .minInc(0)
+                .reconfigurable()
+                .commit(),
+
+            FLOAT_ELEMENT(expected).key("gaussian.sigmaX")
+                .displayedName("Sigma X")
+                .description("The sigma X of the gaussian")
+                .assignmentOptional().defaultValue(100)
+                .minInc(0)
+                .reconfigurable()
+                .commit(),
+
+            FLOAT_ELEMENT(expected).key("gaussian.sigmaY")
+                .displayedName("Sigma Y")
+                .description("The sigma Y of the gaussian")
+                .assignmentOptional().defaultValue(100)
+                .minInc(0)
+                .reconfigurable()
                 .commit(),
 
             PATH_ELEMENT(expected).key("imageFilename")
@@ -160,6 +215,43 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             timeout = 1000 * inputConfig.get("pollInterval")  # to milliseconds
             self.pollWorker.setTimeout(timeout)
 
+        if inputConfig.has('gaussian'):
+            imageType = self['imageType']
+            if inputConfig.has('imageType'):
+                imageType = inputConfig['inputConfig']
+
+            if imageType == '2d_Gaussian':
+                pars = []
+                for k in ['posX', 'posY', 'sigmaX', 'sigmaY', 'imageSizeX',
+                          'imageSizeY']:
+                    key = 'gaussian.' + k
+                    if inputConfig.has(key):
+                        pars.append(inputConfig[key])
+                    else:
+                        pars.append(self[key])
+
+                # 2d Gaussian, no rotation
+                # pos_x, sigma_x, pos_y, sigma_y, im_size_x, im_size_y
+                data = self.create_gaussian(*pars)
+                self.image = data
+                self.newImgAvailable = True
+                self.log.INFO('Gaussian image updated')
+
+                # Sensor geometry
+                self.set("sensorHeight", data.shape[0])
+                self.set("sensorWidth", data.shape[1])
+
+    def create_gaussian(self, pos_x, pos_y, sigma_x, sigma_y,
+                        im_size_x, im_size_y):
+        rvx = scipy.stats.norm(pos_x, sigma_x)
+        x = rvx.pdf(np.arange(im_size_x))  # 1d gaussian
+        rvy = scipy.stats.norm(pos_y, sigma_y)
+        y = rvy.pdf(np.arange(im_size_y))  # 1d gaussian
+        z = np.outer(y, x)  # 2d gaussian (float64)
+        # data -> uint16
+        data = (z / z.max() * 1/2 * np.iinfo('uint16').max).astype('uint16')
+        return data
+
     def initialize(self):
         self.log.INFO("SimulatedCameraPy.initialize")
 
@@ -173,15 +265,12 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         try:
             if imageType == "2d_Gaussian":
                 # 2d Gaussian, no rotation
-                rvx = scipy.stats.norm(300, 50)
-                x = rvx.pdf(np.arange(800))  # 1d gaussian
-                rvy = scipy.stats.norm(200, 75)
-                y = rvy.pdf(np.arange(600))  # 1d gaussian
-                z = np.outer(y, x)  # 2d gaussian (float64)
-                data = (
-                    z / z.max() * 0.5 * np.iinfo('uint16').max
-                ).astype('uint16')  # -> uint16
-                self.log.INFO('2d gaussian image loaded')
+                # pos_x, sigma_x, pos_y, sigma_y, im_size_x, im_size_y
+                data = self.create_gaussian(
+                    self['gaussian.posX'], self['gaussian.posY'],
+                    self['gaussian.sigmaX'], self['gaussian.sigmaY'],
+                    self['gaussian.imageSizeX'], self['gaussian.imageSizeY'])
+                self.log.INFO('Gaussian image created')
             elif imageType == 'RGB_Image':
                 # RGB image
                 red = [255, 0, 0]
@@ -211,6 +300,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             self.log.INFO('Default image (grayscale) loaded')
 
         self.image = data
+        self.newImgAvailable = True
 
         # Sensor geometry
         self.set("sensorHeight", data.shape[0])
@@ -327,9 +417,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         frames = 0
 
         saveImages = self.get("imageStorage.enable")
-        pixelGain = self.get("pixelGain")
-        # Copy original image and apply gain
-        image = (self.image * pixelGain).astype(self.image.dtype)
+        pixelGain = None
 
         while self.keepAcquiring:
 
@@ -354,10 +442,11 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 # Sleep for "exposureTime" to simulate image acquisition
                 time.sleep(exposureTime)
 
-                # Pixel gain has changed
-                if newPixelGain != pixelGain:
-                    image *= newPixelGain / pixelGain
+                if self.newImgAvailable or newPixelGain != pixelGain:
+                    # Copy original image and apply gain
+                    image = (self.image * newPixelGain).astype(self.image.dtype)
                     pixelGain = newPixelGain
+                    self.newImgAvailable = False
 
                 imageType = self.get("imageType")
                 if imageType == '2d_Gaussian':
