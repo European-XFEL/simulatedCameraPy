@@ -15,10 +15,25 @@ import threading
 import time
 
 from karabo.bound import (
-    BOOL_ELEMENT, DOUBLE_ELEMENT, FLOAT_ELEMENT, INT32_ELEMENT,
-    KARABO_CLASSINFO, PATH_ELEMENT, NODE_ELEMENT, STRING_ELEMENT,
-    CameraInterface, Hash, ImageData, PythonDevice, State, Unit, Worker
+    BOOL_ELEMENT, CameraInterface, DaqDataType, DOUBLE_ELEMENT, FLOAT_ELEMENT,
+    Hash, ImageData, IMAGEDATA_ELEMENT, INT32_ELEMENT, KARABO_CLASSINFO,
+    NDARRAY_ELEMENT, NODE_ELEMENT, OUTPUT_CHANNEL, PATH_ELEMENT, PythonDevice,
+    Schema, State, STRING_ELEMENT, Types, Unit, Worker
 )
+
+DTYPE_TO_KTYPE = {
+    'uint8': Types.UINT8,
+    'int8': Types.INT8,
+    'uint16': Types.UINT16,
+    'int16': Types.INT16,
+    'uint32': Types.UINT32,
+    'int32': Types.INT32,
+    'uint64': Types.UINT64,
+    'int64': Types.INT64,
+    'float32': Types.FLOAT,
+    'float': Types.DOUBLE,
+    'double': Types.DOUBLE,
+}
 
 
 @KARABO_CLASSINFO("SimulatedCameraPy", "2.2")
@@ -234,6 +249,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 # pos_x, sigma_x, pos_y, sigma_y, im_size_x, im_size_y
                 data = self.create_gaussian(*pars)
                 self.image = data
+                self.updateOutputSchema()
                 self.newImgAvailable = True
                 self.log.INFO('Gaussian image updated')
 
@@ -300,6 +316,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             self.log.INFO('Default image (grayscale) loaded')
 
         self.image = data
+        self.updateOutputSchema()
         self.newImgAvailable = True
 
         # Sensor geometry
@@ -444,7 +461,8 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
 
                 if self.newImgAvailable or newPixelGain != pixelGain:
                     # Copy original image and apply gain
-                    image = (self.image * newPixelGain).astype(self.image.dtype)
+                    image = (self.image * newPixelGain).astype(
+                        self.image.dtype)
                     pixelGain = newPixelGain
                     self.newImgAvailable = False
 
@@ -505,3 +523,54 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         # Stop acquisition, if running
         if self.get('state') == State.ACQUIRING:
             self.execute("stop")
+
+    def updateOutputSchema(self):
+        # Get device configuration before schema update
+        try:
+            outputHostname = self["output.hostname"]
+        except AttributeError as e:
+            # Configuration does not contain "output.hostname"
+            outputHostname = None
+
+        shape = self.image.shape
+        dType = str(self.image.dtype)
+        kType = DTYPE_TO_KTYPE.get(dType, None)
+        newSchema = Schema()
+        outputData = Schema()
+        (
+            NODE_ELEMENT(outputData).key("data")
+                .displayedName("Data")
+                .setDaqDataType(DaqDataType.TRAIN)
+                .commit(),
+
+            IMAGEDATA_ELEMENT(outputData).key("data.image")
+                .displayedName("Image")
+                .setDimensions(str(shape).strip("()"))
+                .commit(),
+
+            # Set (overwrite) shape and dtype for internal NDArray element -
+            # needed by DAQ
+            NDARRAY_ELEMENT(outputData).key("data.image.pixels")
+                .shape(str(shape).strip("()"))
+                .dtype(kType)
+                .commit(),
+
+            # Set "maxSize" for vector properties - needed by DAQ
+            outputData.setMaxSize("data.image.dims", len(shape)),
+            outputData.setMaxSize("data.image.dimTypes", len(shape)),
+            outputData.setMaxSize("data.image.roiOffsets", len(shape)),
+            outputData.setMaxSize("data.image.binning", len(shape)),
+            outputData.setMaxSize("data.image.pixels.shape", len(shape)),
+
+            OUTPUT_CHANNEL(newSchema).key("output")
+                .displayedName("Output")
+                .dataSchema(outputData)
+                .commit(),
+        )
+
+        self.updateSchema(newSchema)
+
+        if outputHostname:
+            # Restore configuration
+            self.log.DEBUG("output.hostname: %s" % outputHostname)
+            self.set("output.hostname", outputHostname)
