@@ -53,11 +53,6 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         self.image = None
         self.newImgAvailable = False
 
-        self.filePath = ""
-        self.fileName = ""
-        self.fileType = ""
-        self.fileCounter = 0
-
         # Condition variable and lock, to wake up acquireImages()
         # when trigger is received
         self.condLock = threading.Lock()
@@ -347,24 +342,6 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
     def acquire(self):
         self.log.INFO("SimulatedCameraPy.acquire")
 
-        # Get file path, name and extension
-        newName = False
-        if self.get("imageStorage.filePath") != self.filePath:
-            # New file path
-            self.filePath = self.get("imageStorage.filePath")
-            newName = True
-        if self.get("imageStorage.fileName") != self.fileName:
-            # New file root name
-            self.fileName = self.get("imageStorage.fileName")
-            newName = True
-        if self.get("imageStorage.fileType") != self.fileType:
-            # New file extension
-            self.fileType = self.get("imageStorage.fileType")
-
-        if newName:
-            # File has changed name... reset counter
-            self.fileCounter = 0
-
         # Start acquire thread, since slots cannot block
         self.keepAcquiring = True
         self.swTriggerReceived = False
@@ -433,7 +410,6 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         # Frame counter
         frames = 0
 
-        saveImages = self.get("imageStorage.enable")
         pixelGain = None
 
         while self.keepAcquiring:
@@ -482,22 +458,6 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 imageData.setHeader(Hash("blockId", frames, "receptionTime",
                                          round(time.time())))
                 self.writeChannel("output", Hash("data.image", imageData))
-
-                if saveImages:
-                    # Create filename (without path and extension)
-                    imgname = "%s%06ld" % (self.fileName, self.fileCounter)
-                    # Prepend path and append extension
-                    imgname = os.path.join(self.filePath, "{}.{}"
-                                           .format(imgname, self.fileType))
-
-                    if self.fileType in ["tif", "jpg", "png"]:
-                        # PIL must installed!
-                        scipy.misc.imsave(imgname, image2)
-                    else:
-                        raise ValueError("File type not supported")
-
-                    self.set("imageStorage.lastSaved", imgname)
-                    self.fileCounter += 1
 
                 frames += 1
                 if cycleModeIsFixed and frames >= frameCount:
