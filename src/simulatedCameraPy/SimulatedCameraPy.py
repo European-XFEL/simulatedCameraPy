@@ -7,7 +7,6 @@
 #############################################################################
 
 import numpy as np
-import os
 import random
 import scipy.misc
 import scipy.stats
