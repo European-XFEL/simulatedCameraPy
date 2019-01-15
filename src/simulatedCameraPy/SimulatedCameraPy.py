@@ -444,8 +444,12 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 imageType = self.get("imageType")
                 if imageType == '2d_Gaussian':
                     # Add some random noise
-                    noise = np.random.uniform(high=20, size=image.shape)
-                    image2 = image + noise.astype('uint8')
+                    noise = np.random.uniform(high=4000, size=image.shape)
+                    image2 = self.create_gaussian(
+                        self['gaussian.posX']+int(np.random.uniform(-1.0,1.0)*100), self['gaussian.posY']+int(np.random.uniform(-1.0,1.0)*100),
+                        self['gaussian.sigmaX']*np.random.uniform(0.7,1.2), self['gaussian.sigmaY']*np.random.uniform(0.7,1.2),
+                        self['gaussian.imageSizeX'], self['gaussian.imageSizeY'])
+                    image2 = image2 + noise.astype('uint16')
                 else:
                     # Roll image by 10 lines
                     w = 10 * image.shape[0]
@@ -453,6 +457,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                     image2 = image
 
                 # Write image via p2p
+                print( "Writing channel ")
                 imageData = ImageData(image2)
                 imageData.setHeader(Hash("blockId", frames, "receptionTime",
                                          round(time.time())))
