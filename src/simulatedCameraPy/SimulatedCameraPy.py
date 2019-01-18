@@ -74,7 +74,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 .displayedName("Image Type")
                 .description("Select the simulated image type")
                 .options("2d_Gaussian,RGB_Image,Grayscale_Image,"
-                         "Load_from_file")
+                         "Load_from_file,FractalJulia")
                 .assignmentOptional().defaultValue("2d_Gaussian")
                 .init()
                 .commit(),
@@ -250,6 +250,18 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 # Sensor geometry
                 self.set("sensorHeight", data.shape[0])
                 self.set("sensorWidth", data.shape[1])
+            elif imageType=="FractalJulia":
+                data = self.create_julia(800,600,
+                    np.random.uniform(-1.0,1.0), np.random.uniform(-1.0,1.0))
+
+                self.image = data
+                self.updateOutputSchema()
+                self.newImgAvailable = True
+                self.log.INFO('Fractal image updated')
+
+                # Sensor geometry
+                self.set("sensorHeight", data.shape[0])
+                self.set("sensorWidth", data.shape[1])
 
     def create_gaussian(self, pos_x, pos_y, sigma_x, sigma_y,
                         im_size_x, im_size_y):
@@ -261,6 +273,23 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         # data -> uint16
         data = (z / z.max() * 1/2 * np.iinfo('uint16').max).astype('uint16')
         return data
+
+    def create_julia(self, n, m, c_real, c_imag, p_scale=200, p_imax=256, p_thold=5.0 ):
+        x = np.linspace(-m//p_scale, m//p_scale, num=m)
+        y = np.linspace(-n//p_scale, n//p_scale, num=n)
+        xg, yg = np.meshgrid(x, y)
+        z_coord = xg+1j*yg
+
+        c_const = (c_real+1j*c_imag) * np.ones([n,m])
+        mask = np.full([n,m],True,dtype=np.bool)
+        num = np.zeros([n,m])
+        for itr in range(p_imax):
+            z_coord[mask] = z_coord[mask]*z_coord[mask] + c_const[mask]
+            mask[np.abs(z_coord) > p_thold] = False
+            num[mask] = itr
+        return num
+
+
 
     def initialize(self):
         self.log.INFO("SimulatedCameraPy.initialize")
@@ -295,6 +324,12 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 filename = self.get("imageFilename")
                 data = np.load(filename)
                 self.log.INFO('Image loaded from file %s' % filename)
+            elif imageType=="FractalJulia":
+                data = self.create_julia(
+                    800,600,
+                    np.random.uniform(-1.0,1.0),
+                    np.random.uniform(-1.0,1.0)).astype('uint16')
+                print( data.shape )
             else:
                 # Default image, grayscale, vertical gradient
                 a = np.arange(500, dtype=np.uint16)
@@ -446,10 +481,18 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                     # Add some random noise
                     noise = np.random.uniform(high=4000, size=image.shape)
                     image2 = self.create_gaussian(
-                        self['gaussian.posX']+int(np.random.uniform(-1.0,1.0)*100), self['gaussian.posY']+int(np.random.uniform(-1.0,1.0)*100),
-                        self['gaussian.sigmaX']*np.random.uniform(0.7,1.2), self['gaussian.sigmaY']*np.random.uniform(0.7,1.2),
-                        self['gaussian.imageSizeX'], self['gaussian.imageSizeY'])
+                        self['gaussian.posX']+int(np.random.uniform(-99, 99)),
+                        self['gaussian.posY']+int(np.random.uniform(-99, 99)),
+                        self['gaussian.sigmaX']*np.random.uniform(0.7,1.2),
+                        self['gaussian.sigmaY']*np.random.uniform(0.7,1.2),
+                        self['gaussian.imageSizeX'],
+                        self['gaussian.imageSizeY'])
                     image2 = image2 + noise.astype('uint16')
+                elif imageType == "FractalJulia":
+                    image2 = self.create_julia(
+                        800, 600,
+                        np.random.uniform(-1.0, 1.0),
+                        np.random.uniform(-1.0, 1.0)).astype('uint16')
                 else:
                     # Roll image by 10 lines
                     w = 10 * image.shape[0]
@@ -457,7 +500,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                     image2 = image
 
                 # Write image via p2p
-                print( "Writing channel ")
+                print("Writing channel ")
                 imageData = ImageData(image2)
                 imageData.setHeader(Hash("blockId", frames, "receptionTime",
                                          round(time.time())))
