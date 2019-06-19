@@ -250,6 +250,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
 
     def initialize(self):
         self.log.INFO("SimulatedCameraPy.initialize")
+
         self.updateState(State.INIT)
 
         # Camera model
@@ -411,7 +412,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 break
 
     def generate_image(self):
-
+        """Generates a completely new image based on the current imageType"""
         imageType = self.get("imageType")
 
         if imageType == 'Load_from_file':
@@ -449,7 +450,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         return image
 
     def update_image(self):
-
+        """Updates the current image to simulate progress"""
         imageType = self.get("imageType")
 
         if imageType == '2d_Gaussian':
