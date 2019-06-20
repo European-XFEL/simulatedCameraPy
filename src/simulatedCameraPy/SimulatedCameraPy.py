@@ -16,8 +16,8 @@ import time
 from karabo.bound import (
     BOOL_ELEMENT, CameraInterface, DaqDataType, DOUBLE_ELEMENT, FLOAT_ELEMENT,
     Hash, ImageData, IMAGEDATA_ELEMENT, INT32_ELEMENT, KARABO_CLASSINFO,
-    NODE_ELEMENT, OUTPUT_CHANNEL, PATH_ELEMENT, PythonDevice, Schema, State,
-    STRING_ELEMENT, Unit, Worker, Types, NDARRAY_ELEMENT
+    NDARRAY_ELEMENT, NODE_ELEMENT, OUTPUT_CHANNEL, PATH_ELEMENT, PythonDevice,
+    Schema, State, STRING_ELEMENT, Types, Unit, Worker
 )
 
 DTYPE_TO_KTYPE = {
