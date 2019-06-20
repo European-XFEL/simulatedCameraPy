@@ -17,8 +17,22 @@ from karabo.bound import (
     BOOL_ELEMENT, CameraInterface, DaqDataType, DOUBLE_ELEMENT, FLOAT_ELEMENT,
     Hash, ImageData, IMAGEDATA_ELEMENT, INT32_ELEMENT, KARABO_CLASSINFO,
     NODE_ELEMENT, OUTPUT_CHANNEL, PATH_ELEMENT, PythonDevice, Schema, State,
-    STRING_ELEMENT, Unit, Worker
+    STRING_ELEMENT, Unit, Worker, Types, NDARRAY_ELEMENT
 )
+
+DTYPE_TO_KTYPE = {
+    'uint8': Types.UINT8,
+    'int8': Types.INT8,
+    'uint16': Types.UINT16,
+    'int16': Types.INT16,
+    'uint32': Types.UINT32,
+    'int32': Types.INT32,
+    'uint64': Types.UINT64,
+    'int64': Types.INT64,
+    'float32': Types.FLOAT,
+    'float': Types.DOUBLE,
+    'double': Types.DOUBLE,
+}
 
 
 @KARABO_CLASSINFO("SimulatedCameraPy", "2.2")
@@ -475,7 +489,8 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             outputHostname = None
 
         shape = self.image.shape
-        dType = str(self.image.dtype).upper()
+        dType = str(self.image.dtype)
+        kType = DTYPE_TO_KTYPE.get(dType, None)
         newSchema = Schema()
         outputData = Schema()
         (
@@ -484,12 +499,24 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 .setDaqDataType(DaqDataType.TRAIN)
                 .commit(),
 
-            # With setDimensions and setType, IMAGEDATA is DAQ compliant
             IMAGEDATA_ELEMENT(outputData).key("data.image")
                 .displayedName("Image")
                 .setDimensions(str(shape).strip("()"))
-                .setType(dType)
                 .commit(),
+
+            # Set (overwrite) shape and dtype for internal NDArray element -
+            # needed by DAQ
+            NDARRAY_ELEMENT(outputData).key("data.image.pixels")
+                .shape(str(shape).strip("()"))
+                .dtype(kType)
+                .commit(),
+
+            # Set "maxSize" for vector properties - needed by DAQ
+            outputData.setMaxSize("data.image.dims", len(shape)),
+            outputData.setMaxSize("data.image.dimTypes", len(shape)),
+            outputData.setMaxSize("data.image.roiOffsets", len(shape)),
+            outputData.setMaxSize("data.image.binning", len(shape)),
+            outputData.setMaxSize("data.image.pixels.shape", len(shape)),
 
             OUTPUT_CHANNEL(newSchema).key("output")
                 .displayedName("Output")
