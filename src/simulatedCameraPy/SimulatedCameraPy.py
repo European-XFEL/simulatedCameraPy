@@ -74,7 +74,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 .displayedName("Image Type")
                 .description("Select the simulated image type")
                 .options("2d_Gaussian,RGB_Image,Grayscale_Image,"
-                         "Load_from_file")
+                         "Load_from_file,FractalJulia")
                 .assignmentOptional().defaultValue("2d_Gaussian")
                 .init()
                 .commit(),
@@ -225,27 +225,12 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             self.pollWorker.setTimeout(timeout)
 
         if inputConfig.has('gaussian'):
-            imageType = self['imageType']
             if inputConfig.has('imageType'):
-                imageType = inputConfig['inputConfig']
-
-            if imageType == '2d_Gaussian':
-                pars = []
-                for k in ['posX', 'posY', 'sigmaX', 'sigmaY', 'imageSizeX',
-                          'imageSizeY']:
-                    key = 'gaussian.' + k
-                    if inputConfig.has(key):
-                        pars.append(inputConfig[key])
-                    else:
-                        pars.append(self[key])
-
-                # 2d Gaussian, no rotation
-                # pos_x, sigma_x, pos_y, sigma_y, im_size_x, im_size_y
-                data = self.create_gaussian(*pars)
+                self.image = None
+                data = self.update_image()
                 self.image = data
                 self.updateOutputSchema()
                 self.newImgAvailable = True
-                self.log.INFO('Gaussian image updated')
 
                 # Sensor geometry
                 self.set("sensorHeight", data.shape[0])
@@ -262,6 +247,22 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         data = (z / z.max() * 1/2 * np.iinfo('uint16').max).astype('uint16')
         return data
 
+    def create_julia(self, n, m, c_real, c_imag,
+                     p_scale=200, p_imax=512, p_thold=3.0):
+        x = np.linspace(-m//p_scale, m//p_scale, num=m)
+        y = np.linspace(-n//p_scale, n//p_scale, num=n)
+        xg, yg = np.meshgrid(x, y)
+        z_coord = xg+1j*yg
+
+        c_const = (c_real+1j*c_imag) * np.ones([n, m])
+        mask = np.full([n, m], True, dtype=np.bool)
+        num = np.zeros([n, m])
+        for itr in range(p_imax):
+            z_coord[mask] = z_coord[mask]*z_coord[mask] + c_const[mask]
+            mask[np.abs(z_coord) > p_thold] = False
+            num[mask] = itr
+        return num
+
     def initialize(self):
         self.log.INFO("SimulatedCameraPy.initialize")
 
@@ -269,46 +270,8 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
 
         # Camera model
         self.set("cameraModel", "simCam")
-
-        imageType = self.get("imageType")
-
-        try:
-            if imageType == "2d_Gaussian":
-                # 2d Gaussian, no rotation
-                # pos_x, sigma_x, pos_y, sigma_y, im_size_x, im_size_y
-                data = self.create_gaussian(
-                    self['gaussian.posX'], self['gaussian.posY'],
-                    self['gaussian.sigmaX'], self['gaussian.sigmaY'],
-                    self['gaussian.imageSizeX'], self['gaussian.imageSizeY'])
-                self.log.INFO('Gaussian image created')
-            elif imageType == 'RGB_Image':
-                # RGB image
-                red = [255, 0, 0]
-                green = [0, 255, 0]
-                blue = [0, 0, 255]
-                data = np.append(
-                    np.append([red * 67500], [green * 67500]), [blue * 67500]
-                ).reshape(450, 450, 3).astype('uint16')
-                self.log.INFO('RGB image loaded')
-            elif imageType == 'Load_from_file':
-                # Try to load image file
-                filename = self.get("imageFilename")
-                data = np.load(filename)
-                self.log.INFO('Image loaded from file %s' % filename)
-            else:
-                # Default image, grayscale, vertical gradient
-                a = np.arange(500, dtype=np.uint16)
-                b = np.array([a] * 1000)
-                data = np.rot90(b)
-                self.log.INFO('Default image (grayscale) loaded')
-        except Exception as e:
-            # Default image, grayscale, vertical gradient
-            a = np.arange(500, dtype=np.uint16)
-            b = np.array([a] * 1000)
-            data = np.rot90(b)
-            self.log.WARN(str(e))
-            self.log.INFO('Default image (grayscale) loaded')
-
+        self.image = None
+        data = self.update_image()
         self.image = data
         self.updateOutputSchema()
         self.newImgAvailable = True
@@ -436,24 +399,15 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
 
                 if self.newImgAvailable or newPixelGain != pixelGain:
                     # Copy original image and apply gain
-                    image = (self.image * newPixelGain).astype(
+                    self.image = (self.image * newPixelGain).astype(
                         self.image.dtype)
                     pixelGain = newPixelGain
                     self.newImgAvailable = False
 
-                imageType = self.get("imageType")
-                if imageType == '2d_Gaussian':
-                    # Add some random noise
-                    noise = np.random.uniform(high=20, size=image.shape)
-                    image2 = image + noise.astype('uint8')
-                else:
-                    # Roll image by 10 lines
-                    w = 10 * image.shape[0]
-                    image = np.roll(image, w)
-                    image2 = image
-
                 # Write image via p2p
-                imageData = ImageData(image2)
+                data = self.update_image()
+                self.image = data
+                imageData = ImageData(self.image)
                 imageData.setHeader(Hash("blockId", frames, "receptionTime",
                                          round(time.time())))
                 self.writeChannel("output", Hash("data.image", imageData))
@@ -471,6 +425,49 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 self.set("cameraAcquiring", False)
                 self.updateState(State.ERROR)
                 break
+
+    def update_image(self):
+        """Updates the current image to simulate progress"""
+        imageType = self.get("imageType")
+
+        if imageType == '2d_Gaussian':
+            # Add some random noise
+            im_noise = np.random.uniform(high=4000, size=[600, 800])
+            # Ann a gaussian at random position
+            im_beam = self.create_gaussian(
+                self['gaussian.posX'] + int(np.random.uniform(-99, 99)),
+                self['gaussian.posY'] + int(np.random.uniform(-99, 99)),
+                self['gaussian.sigmaX'] * np.random.uniform(0.7, 1.2),
+                self['gaussian.sigmaY'] * np.random.uniform(0.7, 1.2),
+                self['gaussian.imageSizeX'],
+                self['gaussian.imageSizeY'])
+            image = im_beam + im_noise.astype('uint16')
+        elif imageType == "FractalJulia":
+            image = self.create_julia(800, 600,
+                                      np.random.uniform(-1.0, 1.0),
+                                      np.random.uniform(-1.0, 1.0)
+                                      ).astype('uint16')
+        elif self.image is None:
+            # Special case when there's no previous image and we were loading
+            # the image from file
+            if imageType == 'Load_from_file':
+                # Try to load image file
+                filename = self.get("imageFilename")
+                image = np.load(filename)
+                self.log.INFO('Image loaded from file %s' % filename)
+            elif imageType == 'RGB_Image':
+                image = scipy.misc.face().astype('uint8')
+                self.log.INFO('RGB image loaded')
+            else:
+                # Default image, grayscale, vertical gradient
+                a = np.arange(500, dtype=np.uint16)
+                b = np.array([a] * 1000)
+                image = np.rot90(b)
+                self.log.INFO('Default image (grayscale) loaded')
+        else:
+            # Roll image by 10 lines
+            image = np.roll(self.image, 10, axis=0)
+        return image
 
     def preDestruction(self):
         # Stop polling camera
