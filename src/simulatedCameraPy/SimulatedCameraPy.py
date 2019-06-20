@@ -212,7 +212,8 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
 
         if inputConfig.has('gaussian'):
             if inputConfig.has('imageType'):
-                data = self.generate_image()
+                self.image = None
+                data = self.update_image()
                 self.image = data
                 self.updateOutputSchema()
                 self.newImgAvailable = True
@@ -255,8 +256,8 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
 
         # Camera model
         self.set("cameraModel", "simCam")
-
-        data = self.generate_image()
+        self.image = None
+        data = self.update_image()
         self.image = data
         self.updateOutputSchema()
         self.newImgAvailable = True
@@ -411,44 +412,6 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                 self.updateState(State.ERROR)
                 break
 
-    def generate_image(self):
-        """Generates a completely new image based on the current imageType"""
-        imageType = self.get("imageType")
-
-        if imageType == 'Load_from_file':
-            # Try to load image file
-            filename = self.get("imageFilename")
-            image = np.load(filename)
-            self.log.INFO('Image loaded from file %s' % filename)
-        elif imageType == 'RGB_Image':
-            image = scipy.misc.face().astype('uint8')
-            # image = np.transpose(image, (2, 0, 1))
-            self.log.INFO('RGB image loaded')
-        elif imageType == '2d_Gaussian':
-            # Add some random noise
-            im_noise = np.random.uniform(high=4000, size=[600, 800])
-            # Ann a gaussian at random position
-            im_beam = self.create_gaussian(
-                self['gaussian.posX'] + int(np.random.uniform(-99, 99)),
-                self['gaussian.posY'] + int(np.random.uniform(-99, 99)),
-                self['gaussian.sigmaX'] * np.random.uniform(0.7, 1.2),
-                self['gaussian.sigmaY'] * np.random.uniform(0.7, 1.2),
-                self['gaussian.imageSizeX'],
-                self['gaussian.imageSizeY'])
-            image = im_beam + im_noise.astype('uint16')
-        elif imageType == "FractalJulia":
-            image = self.create_julia(800, 600,
-                                      np.random.uniform(-1.0, 1.0),
-                                      np.random.uniform(-1.0, 1.0)
-                                      ).astype('uint16')
-        else:
-            # Default image, grayscale, vertical gradient
-            a = np.arange(500, dtype=np.uint16)
-            b = np.array([a] * 1000)
-            image = np.rot90(b)
-            self.log.INFO('Default image (grayscale) loaded')
-        return image
-
     def update_image(self):
         """Updates the current image to simulate progress"""
         imageType = self.get("imageType")
@@ -470,6 +433,23 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                                       np.random.uniform(-1.0, 1.0),
                                       np.random.uniform(-1.0, 1.0)
                                       ).astype('uint16')
+        elif self.image is None:
+            # Special case when there's no previous image and we were loading
+            # the image from file
+            if imageType == 'Load_from_file':
+                # Try to load image file
+                filename = self.get("imageFilename")
+                image = np.load(filename)
+                self.log.INFO('Image loaded from file %s' % filename)
+            elif imageType == 'RGB_Image':
+                image = scipy.misc.face().astype('uint8')
+                self.log.INFO('RGB image loaded')
+            else:
+                # Default image, grayscale, vertical gradient
+                a = np.arange(500, dtype=np.uint16)
+                b = np.array([a] * 1000)
+                image = np.rot90(b)
+                self.log.INFO('Default image (grayscale) loaded')
         else:
             # Roll image by 10 lines
             image = np.roll(self.image, 10, axis=0)
