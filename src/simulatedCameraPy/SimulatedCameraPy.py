@@ -64,158 +64,158 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         '''Description of device parameters statically known'''
         (
             BOOL_ELEMENT(expected).key("autoConnect")
-                .displayedName("Auto Connect")
-                .description("Auto-connect to the camera")
-                .assignmentMandatory()
-                .init()
-                .commit(),
+            .displayedName("Auto Connect")
+            .description("Auto-connect to the camera")
+            .assignmentMandatory()
+            .init()
+            .commit(),
 
             STRING_ELEMENT(expected).key("imageType")
-                .displayedName("Image Type")
-                .description("Select the simulated image type")
-                .options("2d_Gaussian,RGB_Image,Grayscale_Image,"
-                         "Load_from_file,FractalJulia")
-                .assignmentOptional().defaultValue("2d_Gaussian")
-                .init()
-                .commit(),
+            .displayedName("Image Type")
+            .description("Select the simulated image type")
+            .options("2d_Gaussian,RGB_Image,Grayscale_Image,"
+                     "Load_from_file,FractalJulia")
+            .assignmentOptional().defaultValue("2d_Gaussian")
+            .init()
+            .commit(),
 
             NODE_ELEMENT(expected).key("gaussian")
-                .displayedName("Gaussian Parameters")
-                .commit(),
+            .displayedName("Gaussian Parameters")
+            .commit(),
 
             INT32_ELEMENT(expected).key("gaussian.imageSizeX")
-                .displayedName("Image Width")
-                .description("The size x of the image")
-                .assignmentOptional().defaultValue(800)
-                .minInc(800)
-                .maxInc(1600)
-                .reconfigurable()
-                .commit(),
+            .displayedName("Image Width")
+            .description("The size x of the image")
+            .assignmentOptional().defaultValue(800)
+            .minInc(800)
+            .maxInc(1600)
+            .reconfigurable()
+            .commit(),
 
             INT32_ELEMENT(expected).key("gaussian.imageSizeY")
-                .displayedName("Image Height")
-                .description("The size y of the image")
-                .assignmentOptional().defaultValue(600)
-                .minInc(600)
-                .maxInc(1200)
-                .reconfigurable()
-                .commit(),
+            .displayedName("Image Height")
+            .description("The size y of the image")
+            .assignmentOptional().defaultValue(600)
+            .minInc(600)
+            .maxInc(1200)
+            .reconfigurable()
+            .commit(),
 
             FLOAT_ELEMENT(expected).key("gaussian.posX")
-                .displayedName("Position X")
-                .description("The position x of the gaussian")
-                .assignmentOptional().defaultValue(400)
-                .minInc(0)
-                .reconfigurable()
-                .commit(),
+            .displayedName("Position X")
+            .description("The position x of the gaussian")
+            .assignmentOptional().defaultValue(400)
+            .minInc(0)
+            .reconfigurable()
+            .commit(),
 
             FLOAT_ELEMENT(expected).key("gaussian.posY")
-                .displayedName("Position Y")
-                .description("The position Y of the gaussian")
-                .assignmentOptional().defaultValue(300)
-                .minInc(0)
-                .reconfigurable()
-                .commit(),
+            .displayedName("Position Y")
+            .description("The position Y of the gaussian")
+            .assignmentOptional().defaultValue(300)
+            .minInc(0)
+            .reconfigurable()
+            .commit(),
 
             FLOAT_ELEMENT(expected).key("gaussian.sigmaX")
-                .displayedName("Sigma X")
-                .description("The sigma X of the gaussian")
-                .assignmentOptional().defaultValue(100)
-                .minInc(0)
-                .reconfigurable()
-                .commit(),
+            .displayedName("Sigma X")
+            .description("The sigma X of the gaussian")
+            .assignmentOptional().defaultValue(100)
+            .minInc(0)
+            .reconfigurable()
+            .commit(),
 
             FLOAT_ELEMENT(expected).key("gaussian.sigmaY")
-                .displayedName("Sigma Y")
-                .description("The sigma Y of the gaussian")
-                .assignmentOptional().defaultValue(100)
-                .minInc(0)
-                .reconfigurable()
-                .commit(),
+            .displayedName("Sigma Y")
+            .description("The sigma Y of the gaussian")
+            .assignmentOptional().defaultValue(100)
+            .minInc(0)
+            .reconfigurable()
+            .commit(),
 
             PATH_ELEMENT(expected).key("imageFilename")
-                .displayedName("Image Filename")
-                .description("The full filename to the fake image displayed "
-                             "by the camera. File format must be 'npy'.")
-                .assignmentOptional()
-                .defaultValue("european-xfel-logo-greyscales.npy")
-                .init()
-                .commit(),
+            .displayedName("Image Filename")
+            .description("The full filename to the fake image displayed "
+                         "by the camera. File format must be 'npy'.")
+            .assignmentOptional()
+            .defaultValue("european-xfel-logo-greyscales.npy")
+            .init()
+            .commit(),
 
             DOUBLE_ELEMENT(expected).key("pixelGain")
-                .displayedName("Pixel Gain")
-                .description("The pixel gain")
-                .assignmentOptional().defaultValue(0.5)
-                .minInc(0.001)
-                .maxInc(1.000)
-                .reconfigurable()
-                .commit(),
+            .displayedName("Pixel Gain")
+            .description("The pixel gain")
+            .assignmentOptional().defaultValue(0.5)
+            .minInc(0.001)
+            .maxInc(1.000)
+            .reconfigurable()
+            .commit(),
 
             STRING_ELEMENT(expected).key("cycleMode")
-                .displayedName("Cycle Mode")
-                .description("Configures whether the camera will acquire a "
-                             "fixed length sequence or a continuous sequence")
-                .assignmentOptional().defaultValue("Continuous")
-                .options("Fixed Continuous")
-                .reconfigurable()
-                .allowedStates(State.ON)
-                .commit(),
+            .displayedName("Cycle Mode")
+            .description("Configures whether the camera will acquire a "
+                         "fixed length sequence or a continuous sequence")
+            .assignmentOptional().defaultValue("Continuous")
+            .options("Fixed Continuous")
+            .reconfigurable()
+            .allowedStates(State.ON)
+            .commit(),
 
             INT32_ELEMENT(expected).key("frameCount")
-                .displayedName("Frame Count")
-                .description("Configures the number of images to acquire in "
-                             "the sequence, when the camera is in 'Fixed' "
-                             "Mode")
-                .assignmentOptional().defaultValue(1)
-                .reconfigurable()
-                .allowedStates(State.ON)
-                .commit(),
+            .displayedName("Frame Count")
+            .description("Configures the number of images to acquire in "
+                         "the sequence, when the camera is in 'Fixed' "
+                         "Mode")
+            .assignmentOptional().defaultValue(1)
+            .reconfigurable()
+            .allowedStates(State.ON)
+            .commit(),
 
             STRING_ELEMENT(expected).key("triggerMode")
-                .displayedName("Trigger Mode")
-                .description("Allows the user to configure the camera trigger"
-                             " mode at a high level")
-                .assignmentOptional().defaultValue("Internal")
-                .options("Internal Software")
-                .reconfigurable()
-                .allowedStates(State.ON)
-                .commit(),
+            .displayedName("Trigger Mode")
+            .description("Allows the user to configure the camera trigger"
+                         " mode at a high level")
+            .assignmentOptional().defaultValue("Internal")
+            .options("Internal Software")
+            .reconfigurable()
+            .allowedStates(State.ON)
+            .commit(),
 
             ###################################
             #  READ ONLY HARDWARE PARAMETERS  #
             ###################################
             DOUBLE_ELEMENT(expected).key("sensorTemperature")
-                .displayedName("Sensor Temperature")
-                .description("Returns the temperature of the sensor in "
-                             "Celsius degrees")
-                .unit(Unit.DEGREE_CELSIUS)
-                .readOnly()
-                .commit(),
+            .displayedName("Sensor Temperature")
+            .description("Returns the temperature of the sensor in "
+                         "Celsius degrees")
+            .unit(Unit.DEGREE_CELSIUS)
+            .readOnly()
+            .commit(),
 
             INT32_ELEMENT(expected).key("sensorWidth")
-                .displayedName("Sensor Width")
-                .description("Returns the width of the sensor in pixels")
-                .readOnly()
-                .commit(),
+            .displayedName("Sensor Width")
+            .description("Returns the width of the sensor in pixels")
+            .readOnly()
+            .commit(),
 
             INT32_ELEMENT(expected).key("sensorHeight")
-                .displayedName("Sensor Height")
-                .description("Returns the height of the sensor in pixels")
-                .readOnly()
-                .commit(),
+            .displayedName("Sensor Height")
+            .description("Returns the height of the sensor in pixels")
+            .readOnly()
+            .commit(),
 
             BOOL_ELEMENT(expected).key("cameraAcquiring")
-                .displayedName("Camera Acquiring")
-                .description("Returns whether or not an acquisition is "
-                             "currently running")
-                .readOnly()
-                .commit(),
+            .displayedName("Camera Acquiring")
+            .description("Returns whether or not an acquisition is "
+                         "currently running")
+            .readOnly()
+            .commit(),
 
             STRING_ELEMENT(expected).key("cameraModel")
-                .displayedName("Camera Model")
-                .description("Returns the camera model")
-                .readOnly()
-                .commit(),
+            .displayedName("Camera Model")
+            .description("Returns the camera model")
+            .readOnly()
+            .commit(),
         )
 
     def preReconfigure(self, inputConfig):
@@ -431,16 +431,17 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         imageType = self.get("imageType")
 
         if imageType == '2d_Gaussian':
+            width = self['gaussian.imageSizeX']
+            height = self['gaussian.imageSizeY']
             # Add some random noise
-            im_noise = np.random.uniform(high=4000, size=[600, 800])
+            im_noise = np.random.uniform(high=4000, size=[height, width])
             # Ann a gaussian at random position
             im_beam = self.create_gaussian(
                 self['gaussian.posX'] + int(np.random.uniform(-99, 99)),
                 self['gaussian.posY'] + int(np.random.uniform(-99, 99)),
                 self['gaussian.sigmaX'] * np.random.uniform(0.7, 1.2),
                 self['gaussian.sigmaY'] * np.random.uniform(0.7, 1.2),
-                self['gaussian.imageSizeX'],
-                self['gaussian.imageSizeY'])
+                width, height)
             image = im_beam + im_noise.astype('uint16')
         elif imageType == "FractalJulia":
             image = self.create_julia(800, 600,
@@ -495,21 +496,21 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         outputData = Schema()
         (
             NODE_ELEMENT(outputData).key("data")
-                .displayedName("Data")
-                .setDaqDataType(DaqDataType.TRAIN)
-                .commit(),
+            .displayedName("Data")
+            .setDaqDataType(DaqDataType.TRAIN)
+            .commit(),
 
             IMAGEDATA_ELEMENT(outputData).key("data.image")
-                .displayedName("Image")
-                .setDimensions(str(shape).strip("()"))
-                .commit(),
+            .displayedName("Image")
+            .setDimensions(str(shape).strip("()"))
+            .commit(),
 
             # Set (overwrite) shape and dtype for internal NDArray element -
             # needed by DAQ
             NDARRAY_ELEMENT(outputData).key("data.image.pixels")
-                .shape(str(shape).strip("()"))
-                .dtype(kType)
-                .commit(),
+            .shape(str(shape).strip("()"))
+            .dtype(kType)
+            .commit(),
 
             # Set "maxSize" for vector properties - needed by DAQ
             outputData.setMaxSize("data.image.dims", len(shape)),
@@ -519,9 +520,9 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             outputData.setMaxSize("data.image.pixels.shape", len(shape)),
 
             OUTPUT_CHANNEL(newSchema).key("output")
-                .displayedName("Output")
-                .dataSchema(outputData)
-                .commit(),
+            .displayedName("Output")
+            .dataSchema(outputData)
+            .commit(),
         )
 
         self.updateSchema(newSchema)
