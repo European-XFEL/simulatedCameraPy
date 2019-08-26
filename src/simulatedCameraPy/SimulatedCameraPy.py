@@ -16,8 +16,8 @@ import time
 from karabo.bound import (
     BOOL_ELEMENT, CameraInterface, DaqDataType, DOUBLE_ELEMENT, FLOAT_ELEMENT,
     Hash, ImageData, IMAGEDATA_ELEMENT, INT32_ELEMENT, KARABO_CLASSINFO,
-    NDARRAY_ELEMENT, NODE_ELEMENT, OUTPUT_CHANNEL, PATH_ELEMENT, PythonDevice,
-    Schema, State, STRING_ELEMENT, Types, Unit, Worker
+    NODE_ELEMENT, OUTPUT_CHANNEL, PATH_ELEMENT, PythonDevice, Schema, State,
+    STRING_ELEMENT, Types, Unit, Worker
 )
 
 DTYPE_TO_KTYPE = {
@@ -35,7 +35,7 @@ DTYPE_TO_KTYPE = {
 }
 
 
-@KARABO_CLASSINFO("SimulatedCameraPy", "2.2")
+@KARABO_CLASSINFO("SimulatedCameraPy", "2.5")
 class SimulatedCameraPy(PythonDevice, CameraInterface):
     def __init__(self, configuration):
         # always call PythonDevice constructor first!
@@ -502,22 +502,9 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
 
             IMAGEDATA_ELEMENT(outputData).key("data.image")
             .displayedName("Image")
-            .setDimensions(str(shape).strip("()"))
+            .setDimensions(list(shape))
+            .setType(kType)
             .commit(),
-
-            # Set (overwrite) shape and dtype for internal NDArray element -
-            # needed by DAQ
-            NDARRAY_ELEMENT(outputData).key("data.image.pixels")
-            .shape(str(shape).strip("()"))
-            .dtype(kType)
-            .commit(),
-
-            # Set "maxSize" for vector properties - needed by DAQ
-            outputData.setMaxSize("data.image.dims", len(shape)),
-            outputData.setMaxSize("data.image.dimTypes", len(shape)),
-            outputData.setMaxSize("data.image.roiOffsets", len(shape)),
-            outputData.setMaxSize("data.image.binning", len(shape)),
-            outputData.setMaxSize("data.image.pixels.shape", len(shape)),
 
             OUTPUT_CHANNEL(newSchema).key("output")
             .displayedName("Output")
