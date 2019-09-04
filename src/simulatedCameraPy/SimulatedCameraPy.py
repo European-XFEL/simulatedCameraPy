@@ -35,7 +35,7 @@ DTYPE_TO_KTYPE = {
 }
 
 
-@KARABO_CLASSINFO("SimulatedCameraPy", "2.5")
+@KARABO_CLASSINFO("SimulatedCameraPy", "2.6")
 class SimulatedCameraPy(PythonDevice, CameraInterface):
     def __init__(self, configuration):
         # always call PythonDevice constructor first!
