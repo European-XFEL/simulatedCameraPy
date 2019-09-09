@@ -35,7 +35,7 @@ DTYPE_TO_KTYPE = {
 }
 
 
-@KARABO_CLASSINFO("SimulatedCameraPy", "2.5")
+@KARABO_CLASSINFO("SimulatedCameraPy", "2.6")
 class SimulatedCameraPy(PythonDevice, CameraInterface):
     def __init__(self, configuration):
         # always call PythonDevice constructor first!
@@ -482,13 +482,6 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             self.execute("stop")
 
     def updateOutputSchema(self):
-        # Get device configuration before schema update
-        try:
-            outputHostname = self["output.hostname"]
-        except AttributeError as e:
-            # Configuration does not contain "output.hostname"
-            outputHostname = None
-
         shape = self.image.shape
         dType = str(self.image.dtype)
         kType = DTYPE_TO_KTYPE.get(dType, None)
@@ -512,9 +505,4 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             .commit(),
         )
 
-        self.updateSchema(newSchema)
-
-        if outputHostname:
-            # Restore configuration
-            self.log.DEBUG("output.hostname: %s" % outputHostname)
-            self.set("output.hostname", outputHostname)
+        self.appendSchema(newSchema)
