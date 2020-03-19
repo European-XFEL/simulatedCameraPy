@@ -6,7 +6,7 @@ from ..SimulatedCameraPy import SimulatedCameraPy
 
 class SimulatedCamera_TestCase(unittest.TestCase):
     def test_simulated_camera(self):
-        config = Hash("Logger.priority", "DEBUG",
+        config = Hash("Logger.priority", "WARN",
                       "deviceId", "SimulatedCamera_0",
                       "autoConnect", True)
         cam = Configurator(PythonDevice).create("SimulatedCameraPy", config)
@@ -14,7 +14,7 @@ class SimulatedCamera_TestCase(unittest.TestCase):
 
     def test_simulated_camera_no_autoconnect(self):
         try:
-            config = Hash("Logger.priority", "DEBUG", "deviceId",
+            config = Hash("Logger.priority", "WARN", "deviceId",
                           "SimulatedCamera_noAutoConnect_0")
             cam = Configurator(PythonDevice).create("SimulatedCameraPy",
                                                     config)

@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 #############################################################################
 # Author: <andrea.parenti@xfel.eu>
 # Created on November 12, 2013
@@ -14,11 +12,12 @@ import threading
 import time
 
 from karabo.bound import (
-    BOOL_ELEMENT, CameraInterface, DaqDataType, DOUBLE_ELEMENT, FLOAT_ELEMENT,
-    Hash, ImageData, IMAGEDATA_ELEMENT, INT32_ELEMENT, KARABO_CLASSINFO,
-    NODE_ELEMENT, OUTPUT_CHANNEL, PATH_ELEMENT, PythonDevice, Schema, State,
+    BOOL_ELEMENT, DOUBLE_ELEMENT, Encoding, FLOAT_ELEMENT, Hash, INT32_ELEMENT,
+    KARABO_CLASSINFO, NODE_ELEMENT, PATH_ELEMENT, SLOT_ELEMENT, State,
     STRING_ELEMENT, Types, Unit, Worker
 )
+
+from imageSource.CameraImageSource import CameraImageSource
 
 DTYPE_TO_KTYPE = {
     'uint8': Types.UINT8,
@@ -35,11 +34,15 @@ DTYPE_TO_KTYPE = {
 }
 
 
-@KARABO_CLASSINFO("SimulatedCameraPy", "2.6")
-class SimulatedCameraPy(PythonDevice, CameraInterface):
+@KARABO_CLASSINFO("SimulatedCameraPy", "2.8")
+class SimulatedCameraPy(CameraImageSource):
     def __init__(self, configuration):
         # always call PythonDevice constructor first!
         super(SimulatedCameraPy, self).__init__(configuration)
+
+        # Define the first function to be called after the constructor has
+        # finished
+        self.registerInitialFunction(self.initialization)
 
         random.seed()
 
@@ -61,13 +64,54 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
 
     @staticmethod
     def expectedParameters(expected):
-        '''Description of device parameters statically known'''
         (
+            SLOT_ELEMENT(expected).key("acquire")
+            .displayedName("Acquire")
+            .description("Start acquisition.")
+            .allowedStates(State.ON)
+            .commit(),
+
+            SLOT_ELEMENT(expected).key("stop")
+            .displayedName("Stop")
+            .description("Stop acquisition.")
+            .allowedStates(State.ACQUIRING)
+            .commit(),
+
+            SLOT_ELEMENT(expected).key("trigger")
+            .displayedName("Trigger")
+            .description("Sends a software trigger to the camera.")
+            .allowedStates(State.ACQUIRING)
+            .commit(),
+
+            SLOT_ELEMENT(expected).key("reset")
+            .displayedName("Reset")
+            .description("Reset software error.")
+            .allowedStates(State.ERROR)
+            .commit(),
+
             BOOL_ELEMENT(expected).key("autoConnect")
             .displayedName("Auto Connect")
             .description("Auto-connect to the camera")
             .assignmentMandatory()
             .init()
+            .commit(),
+
+            DOUBLE_ELEMENT(expected).key("exposureTime")
+            .displayedName("Exposure Time")
+            .description("The requested exposure time in seconds")
+            .unit(Unit.SECOND)
+            .assignmentOptional().defaultValue(1.0)
+            .minInc(0.02).maxInc(5.0)
+            .reconfigurable()
+            .commit(),
+
+            INT32_ELEMENT(expected).key("pollInterval")
+            .displayedName("Poll Interval")
+            .description("The interval with which the camera should be polled")
+            .unit(Unit.SECOND)
+            .minInc(1)
+            .assignmentOptional().defaultValue(10)
+            .reconfigurable()
             .commit(),
 
             STRING_ELEMENT(expected).key("imageType")
@@ -263,8 +307,14 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             num[mask] = itr
         return num
 
-    def initialize(self):
-        self.log.INFO("SimulatedCameraPy.initialize")
+    def initialization(self):
+        self.log.INFO("SimulatedCameraPy.initialization")
+
+        # register slots
+        self.KARABO_SLOT(self.acquire)
+        self.KARABO_SLOT(self.trigger)
+        self.KARABO_SLOT(self.stop)
+        self.KARABO_SLOT(self.reset)
 
         self.updateState(State.INIT)
 
@@ -280,12 +330,11 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         self.set("sensorHeight", data.shape[0])
         self.set("sensorWidth", data.shape[1])
 
-        if self.pollWorker is None:
-            # Create and start poll worker
-            timeout = 1000 * self.get("pollInterval")  # to milliseconds
-            self.pollWorker = Worker(self.pollHardware, timeout, -1)
-            self.pollWorker.daemon = True
-            self.pollWorker.start()
+        # Create and start poll worker
+        timeout = 1000 * self.get("pollInterval")  # to milliseconds
+        self.pollWorker = Worker(self.pollHardware, timeout, -1)
+        self.pollWorker.daemon = True
+        self.pollWorker.start()
 
         # Sleep a while (to simulate camera initialization)
         time.sleep(1)
@@ -296,10 +345,6 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             self.updateState(State.ON)
         else:
             self.updateState(State.UNKNOWN)
-
-    def connectCamera(self):
-        self.log.INFO("SimulatedCameraPy.connectCamera")
-        self.updateState(State.ON)
 
     def acquire(self):
         self.log.INFO("SimulatedCameraPy.acquire")
@@ -346,8 +391,8 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
         self.set("cameraAcquiring", False)
         self.updateState(State.ON)
 
-    def resetHardware(self):
-        self.log.INFO("SimulatedCameraPy.resetHardware")
+    def reset(self):
+        self.log.INFO("SimulatedCameraPy.reset")
         self.updateState(State.ON)
 
     def pollHardware(self):
@@ -404,13 +449,14 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
                     pixelGain = newPixelGain
                     self.newImgAvailable = False
 
-                # Write image via p2p
+                # Prepare image
                 data = self.update_image()
                 self.image = data
-                imageData = ImageData(self.image)
-                imageData.setHeader(Hash("blockId", frames, "receptionTime",
-                                         round(time.time())))
-                self.writeChannel("output", Hash("data.image", imageData))
+                image_header = Hash(
+                    "blockId", frames, "receptionTime", round(time.time()))
+
+                # Write image to output channels
+                self.write_channels(data, header=image_header)
 
                 frames += 1
                 if cycleModeIsFixed and frames >= frameCount:
@@ -435,7 +481,7 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
             height = self['gaussian.imageSizeY']
             # Add some random noise
             im_noise = np.random.uniform(high=4000, size=[height, width])
-            # Ann a gaussian at random position
+            # Add a gaussian at random position
             im_beam = self.create_gaussian(
                 self['gaussian.posX'] + int(np.random.uniform(-99, 99)),
                 self['gaussian.posY'] + int(np.random.uniform(-99, 99)),
@@ -483,26 +529,14 @@ class SimulatedCameraPy(PythonDevice, CameraInterface):
 
     def updateOutputSchema(self):
         shape = self.image.shape
-        dType = str(self.image.dtype)
-        kType = DTYPE_TO_KTYPE.get(dType, None)
-        newSchema = Schema()
-        outputData = Schema()
-        (
-            NODE_ELEMENT(outputData).key("data")
-            .displayedName("Data")
-            .setDaqDataType(DaqDataType.TRAIN)
-            .commit(),
+        if self.image.ndim == 2:
+            encoding = Encoding.GRAY
+        elif self.image.ndim == 3:
+            encoding = Encoding.RGB
+        else:
+            encoding = Encoding.UNDEFINED
 
-            IMAGEDATA_ELEMENT(outputData).key("data.image")
-            .displayedName("Image")
-            .setDimensions(list(shape))
-            .setType(kType)
-            .commit(),
+        d_type = str(self.image.dtype)
+        k_type = DTYPE_TO_KTYPE.get(d_type, None)
 
-            OUTPUT_CHANNEL(newSchema).key("output")
-            .displayedName("Output")
-            .dataSchema(outputData)
-            .commit(),
-        )
-
-        self.appendSchema(newSchema)
+        self.update_output_schema(shape, encoding, k_type)
