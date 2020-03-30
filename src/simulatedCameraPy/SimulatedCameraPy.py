@@ -385,8 +385,7 @@ class SimulatedCameraPy(CameraImageSource):
         if self.acquireThread is not None and self.acquireThread.isAlive():
             self.acquireThread.join(10.)
 
-        # Signals end of stream
-        self.signalEndOfStream("output")
+        self.signal_eos()  # End-of-Stream signal
 
         self.set("cameraAcquiring", False)
         self.updateState(State.ON)
