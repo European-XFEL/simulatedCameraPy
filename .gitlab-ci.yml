@@ -8,8 +8,23 @@
     - curl http://exflserv05.desy.de/karabo/karaboFramework/tags/$KARABO_TAG/karabo-$KARABO_TAG-Release-$REL_OS_NAME-$REL_OS_VERS_LONG-x86_64.sh > karabo.sh
     - bash karabo.sh --prefix=/root
     - source /root/karabo/activate
-    - pushd $CI_PROJECT_DIR
-    - karabo -g https://$XFEL_TOKEN@git.xfel.eu/gitlab install $REL_PROJECT_NAME $REL_TAG
+    - cd $CI_PROJECT_DIR
+    # install depends
+    - >
+        if test -f "DEPENDS"; then
+           IFS=","
+           while read line; do
+               [[ $line =~ ^#.* ]] && continue
+               norm=${line/,/ }
+               norm=`echo $norm | sed -e "s/[[:space:]]\+/ /g"`
+               device=$(echo $norm | cut -f1 -d' ')
+               tag=$(echo $norm | cut -f2 -d' ')
+               echo $device
+               echo $tag
+               karabo -g https://$XFEL_TOKEN@git.xfel.eu/gitlab install $device $tag
+           done < DEPENDS        
+        fi;
+    - pip install -e . 
     - nosetests .
   only:
     - branches

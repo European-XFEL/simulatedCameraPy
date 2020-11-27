@@ -4,20 +4,21 @@
 # Copyright (C) European XFEL GmbH Hamburg. All rights reserved.
 #############################################################################
 
-import numpy as np
 import random
-import scipy.misc
-import scipy.stats
 import threading
 import time
 
+import numpy as np
+import scipy.misc
+import scipy.stats
+from imageSource.CameraImageSource import CameraImageSource
 from karabo.bound import (
-    BOOL_ELEMENT, DOUBLE_ELEMENT, Encoding, FLOAT_ELEMENT, Hash, INT32_ELEMENT,
-    KARABO_CLASSINFO, NODE_ELEMENT, PATH_ELEMENT, SLOT_ELEMENT, State,
-    STRING_ELEMENT, Types, Unit, Worker
+    BOOL_ELEMENT, DOUBLE_ELEMENT, FLOAT_ELEMENT, INT32_ELEMENT,
+    KARABO_CLASSINFO, NODE_ELEMENT, PATH_ELEMENT, SLOT_ELEMENT, STRING_ELEMENT,
+    Encoding, Hash, State, Types, Unit, Worker
 )
 
-from imageSource.CameraImageSource import CameraImageSource
+from ._version import version as deviceVersion
 
 DTYPE_TO_KTYPE = {
     'uint8': Types.UINT8,
@@ -34,7 +35,7 @@ DTYPE_TO_KTYPE = {
 }
 
 
-@KARABO_CLASSINFO("SimulatedCameraPy", "2.8")
+@KARABO_CLASSINFO("SimulatedCameraPy", deviceVersion)
 class SimulatedCameraPy(CameraImageSource):
     def __init__(self, configuration):
         # always call PythonDevice constructor first!
