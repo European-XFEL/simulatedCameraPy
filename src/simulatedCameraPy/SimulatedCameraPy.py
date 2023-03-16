@@ -178,6 +178,14 @@ class SimulatedCameraPy(CameraImageSource):
             .reconfigurable()
             .commit(),
 
+            FLOAT_ELEMENT(expected).key("gaussian.jitter")
+            .displayedName("Jitter")
+            .description("The jitter on the gaussian position")
+            .assignmentOptional().defaultValue(1)
+            .minInc(1)
+            .reconfigurable()
+            .commit(),
+
             PATH_ELEMENT(expected).key("imageFilename")
             .displayedName("Image Filename")
             .description("The full filename to the fake image displayed "
@@ -479,12 +487,15 @@ class SimulatedCameraPy(CameraImageSource):
         if imageType == '2d_Gaussian':
             width = self['gaussian.imageSizeX']
             height = self['gaussian.imageSizeY']
+            jitter = self['gaussian.jitter']
             # Add some random noise
             im_noise = np.random.uniform(high=4000, size=[height, width])
             # Add a gaussian at random position
             im_beam = self.create_gaussian(
-                self['gaussian.posX'] + int(np.random.uniform(-99, 99)),
-                self['gaussian.posY'] + int(np.random.uniform(-99, 99)),
+                self['gaussian.posX'] + int(
+                    np.random.uniform(-jitter, jitter)),
+                self['gaussian.posY'] + int(
+                    np.random.uniform(-jitter, jitter)),
                 self['gaussian.sigmaX'] * np.random.uniform(0.7, 1.2),
                 self['gaussian.sigmaY'] * np.random.uniform(0.7, 1.2),
                 width, height)
