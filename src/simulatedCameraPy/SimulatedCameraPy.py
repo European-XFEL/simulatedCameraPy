@@ -12,11 +12,11 @@ import numpy as np
 import scipy.misc
 import scipy.stats
 from imageSource.CameraImageSource import CameraImageSource
+
 from karabo.bound import (
     BOOL_ELEMENT, DOUBLE_ELEMENT, FLOAT_ELEMENT, INT32_ELEMENT,
     KARABO_CLASSINFO, NODE_ELEMENT, PATH_ELEMENT, SLOT_ELEMENT, STRING_ELEMENT,
-    Encoding, Hash, State, Types, Unit, Worker
-)
+    Encoding, Hash, State, Types, Unit, Worker)
 
 from ._version import version as deviceVersion
 
