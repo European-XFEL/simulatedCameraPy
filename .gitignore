@@ -1,7 +1,3 @@
-src/simulatedCameraPy.egg-info/
-src/simulatedCameraPy/__pycache__/
-*.pyc
-dist/
-build/
-.dep.inc
-
+simulatedCameraPy.egg-info/
+__pycache__/
+_version.py
